@@ -1,7 +1,9 @@
 // src/config.js
 export const createConfig = (overrides = {}) => ({
   spreadsheetId: "1nZRSxBUWp_4b0WHFofv6iTCkFBEa-D71OWIKm_hl860",
-
+  notifications: {
+    greeting: "Барабанное утро!",
+  },
   paths: {
     outputDir: "data",
   },
