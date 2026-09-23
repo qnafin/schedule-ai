@@ -1,4 +1,4 @@
-import { pad2 } from './normalizers.js';
+import { pad2 } from './normalizers';
 
 export const buildSlots = ({ workStartHour, workEndHour, slotMinutes }) => {
   const slots = [];

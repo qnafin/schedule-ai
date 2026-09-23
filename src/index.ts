@@ -1,34 +1,49 @@
-import { createConfig } from './config';
-import { createAuthClient } from './adapters/googleAuth';
-import { connectToSheet, createRowsFetcher } from './adapters/googleSheets';
-import { createBuildScheduleForDates } from './application/buildScheduleForDates';
-import { saveJson } from './adapters/jsonFile';
-import creds from '../schedule-ai-509407-07d997950c3e.json' with { type: 'json' };
+// src/index.js
+import { createConfig } from './config.js';
+import { createAuthClient } from './adapters/googleAuth.js';
+import { connectToSheet } from './adapters/googleSheets.js';
+import { createRosterLoader } from './adapters/rosterSource.js';
+import { createBuildScheduleForDates } from './application/buildScheduleForDates.js';
+import { saveJsonTo } from './adapters/jsonFile.js';
+import creds from '../service_account.json' with { type: 'json' };
+
+// "01.09.2026" → "2026-09-01" (ISO, чтобы файлы сортировались)
+const toIsoDate = (d) => {
+  const [dd, mm, yyyy] = d.split('.');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 const main = async () => {
   const dates = ['01.09.2026', '02.09.2026'];
   const config = createConfig();
 
-  // Собираем зависимости
   const authClient = createAuthClient(creds);
-  const sheet = await connectToSheet(config, authClient);
-  const fetchAllRows = createRowsFetcher(sheet);
+  const { doc, sheet } = await connectToSheet(config, authClient);
 
-  // Инжектируем порт в use case
-  const buildSchedule = createBuildScheduleForDates({ fetchAllRows });
+  const save = saveJsonTo(config.paths.outputDir);
 
-  // Выполняем
+  // ---------- 1. Расписание ----------
+  const buildSchedule = createBuildScheduleForDates({
+    fetchAllRows: () => sheet.getRows(),
+  });
   const days = await buildSchedule(config, dates);
 
-  const fileName = `schedule-${dates
-    .map((d) => d.replaceAll('.', '-'))
-    .join('_')}.json`;
+  const scheduleFile = `schedule-${dates.map(toIsoDate).join('_')}.json`;
+  await save(scheduleFile, days);
+  console.log(`💾 ${config.paths.outputDir}/${scheduleFile}`);
 
-  await saveJson(fileName, days);
-  console.log(`💾 Сохранено: ${fileName}`);
+  // ---------- 2. Справочники ----------
+  const loadRoster = createRosterLoader(doc, config);
+  const { students, teachers } = await loadRoster();
+
+  await save('students.json', students);
+  await save('teachers.json', teachers);
+  console.log(`💾 ${config.paths.outputDir}/students.json (${students.length})`);
+  console.log(`💾 ${config.paths.outputDir}/teachers.json (${teachers.length})`);
+
 };
 
-main().catch((err) => {
-  console.error(err);
+main().catch((e) => {
+  console.error(e);
   process.exit(1);
 });

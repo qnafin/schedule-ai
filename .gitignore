@@ -1,4 +1,5 @@
 node_modules/
-schedule-ai-*.json
-schedule-*.json
+
 .env
+data/*
+service_account.json
