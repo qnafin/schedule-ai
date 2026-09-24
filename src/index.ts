@@ -10,6 +10,8 @@ import { createJournal } from './adapters/journal.js';
 import { saveJsonTo } from './adapters/jsonFile.js';
 import { toIsoDate, toDdMmYyyy } from './utils/dates.js';
 import { renderFailureReport } from './domain/reports.js';
+import { formatRelativeDay } from './domain/notifications';
+import { createSendChatSummary } from './application/sendChatSummary';
 import creds from '../service_account.json' with { type: 'json' };
 
 const main = async () => {
@@ -87,6 +89,25 @@ const main = async () => {
   console.log(`↩️ пропущено:  ${result.skipped.length}`);
   console.log(`⚠️ ошибок:     ${result.failed.length}`);
   if (result.failed.length) console.table(result.failed.map(({ fullName, role, reason }) => ({ fullName, role, reason })));
+
+const daysForChat = days.map((d) => ({
+  ...d,
+  relativeDay: formatRelativeDay(d.date, today),
+}));
+const sendChatSummary = createSendChatSummary({ vkClient, journal });
+const chatResult = await sendChatSummary({
+  days: daysForChat,
+  runDate: today,
+  peerId: config.notifications.chatPeerId,
+});
+
+if (chatResult.sent) {
+  console.log('📢 Сводка отправлена в чат');
+} else if (chatResult.skipped) {
+  console.log(`↩️ Сводка пропущена: ${chatResult.reason}`);
+} else {
+  console.error(`❌ Ошибка отправки сводки: ${chatResult.error}`);
+}
 };
 
 main().catch((e) => { console.error(e); process.exit(1); });

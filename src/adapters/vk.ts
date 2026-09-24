@@ -1,8 +1,7 @@
+const VK_API = "https://api.vk.com/method";
 
-const VK_API = 'https://api.vk.com/method';
-
-export const createVkClient = ({ token, version = '5.199' }) => {
-  if (!token) throw new Error('VK_ACCESS_TOKEN не задан');
+export const createVkClient = ({ token, version = "5.199" }) => {
+  if (!token) throw new Error("VK_ACCESS_TOKEN не задан");
 
   const call = async (method, params) => {
     const body = new URLSearchParams({
@@ -12,8 +11,8 @@ export const createVkClient = ({ token, version = '5.199' }) => {
     });
 
     const res = await fetch(`${VK_API}/${method}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
     });
 
@@ -27,17 +26,24 @@ export const createVkClient = ({ token, version = '5.199' }) => {
   };
 
   const resolveScreenName = async (screenName) => {
-    const users = await call('users.get', { user_ids: screenName });
+    const users = await call("users.get", { user_ids: screenName });
     if (!Array.isArray(users) || !users.length) return null;
     return users[0].id;
   };
 
   const send = ({ userId, text, randomId }) =>
-    call('messages.send', {
+    call("messages.send", {
       user_id: String(userId),
       message: text,
       random_id: String(randomId ?? Date.now()),
     });
 
-  return { resolveScreenName, send };
+  const sendToChat = ({ peerId, text, randomId }) =>
+    call("messages.send", {
+      peer_id: String(peerId),
+      message: text,
+      random_id: String(randomId ?? Date.now()),
+    });
+
+  return { resolveScreenName, send, sendToChat };
 };

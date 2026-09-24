@@ -1,42 +1,53 @@
 // src/domain/notifications.js
-import { resolvePerson, splitNames } from './roster.js';
+import { resolvePerson, splitNames } from "./roster.js";
 
 const MONTHS_RU = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
 ];
 
 const parseDdMmYyyy = (s) => {
-  const m = String(s ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const m = String(s ?? "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (!m) return null;
   return { day: Number(m[1]), month: Number(m[2]), year: Number(m[3]) };
 };
 
 // "01.09.2026" при today="31.08.2026" → "Завтра"
 export const formatRelativeDay = (date, today) => {
-  if (date === today) return 'Сегодня';
+  if (date === today) return "Сегодня";
   const a = parseDdMmYyyy(today);
   const b = parseDdMmYyyy(date);
   if (a && b) {
     const diff = Math.round(
       (Date.UTC(b.year, b.month - 1, b.day) -
-        Date.UTC(a.year, a.month - 1, a.day)) / 86400000
+        Date.UTC(a.year, a.month - 1, a.day)) /
+        86400000
     );
-    if (diff === 1) return 'Завтра';
-    if (diff === -1) return 'Вчера';
+    if (diff === 1) return "Завтра";
+    if (diff === -1) return "Вчера";
     return `${b.day} ${MONTHS_RU[b.month - 1]}`;
   }
   return date;
 };
 
 const joinWithAnd = (parts) => {
-  if (parts.length === 0) return '';
+  if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0];
-  return `${parts.slice(0, -1).join(', ')} и ${parts[parts.length - 1]}`;
+  return `${parts.slice(0, -1).join(", ")} и ${parts[parts.length - 1]}`;
 };
 
-const typeOf = (t) => t || 'занятие';
-const cleanNames = (raw) => splitNames(raw).filter((n) => n && n !== '—');
+const typeOf = (t) => t || "занятие";
+const cleanNames = (raw) => splitNames(raw).filter((n) => n && n !== "—");
 
 // ---------- Группировка уроков по людям ----------
 const bucketKey = (role, person) => `${role}:${person.id}`;
@@ -47,8 +58,8 @@ const collectBuckets = (day, studentIndex, teacherIndex) => {
 
   for (const lesson of day.lessons) {
     const lookups = [
-      { role: 'student', raw: lesson.students, index: studentIndex },
-      { role: 'teacher', raw: lesson.teachers, index: teacherIndex },
+      { role: "student", raw: lesson.students, index: studentIndex },
+      { role: "teacher", raw: lesson.teachers, index: teacherIndex },
     ];
 
     for (const { role, raw, index } of lookups) {
@@ -71,28 +82,29 @@ const collectBuckets = (day, studentIndex, teacherIndex) => {
 // ---------- Рендер ----------
 const renderStudentLesson = (l) => {
   const base = `— ${l.time} — ${typeOf(l.type)}`;
-  const cls = l.className ? ` (${l.className})` : '';
+  const cls = l.className ? ` (${l.className})` : "";
   const teachers = cleanNames(l.teachers);
-  const teachersStr = teachers.length ? ` • ${joinWithAnd(teachers)}` : '';
+  const teachersStr = teachers.length ? ` • ${joinWithAnd(teachers)}` : "";
   return `${base}${cls}${teachersStr}`;
 };
 
 const renderTeacherLesson = (l) => {
   const base = `— ${l.time} — ${typeOf(l.type)}`;
-  const cls = l.className ? ` (${l.className})` : '';
+  const cls = l.className ? ` (${l.className})` : "";
   const students = cleanNames(l.students);
-  const studentsStr = students.length ? ` • ${joinWithAnd(students)}` : '';
+  const studentsStr = students.length ? ` • ${joinWithAnd(students)}` : "";
   return `${base}${cls}${studentsStr}`;
 };
 
 const renderText = (greeting, relativeDay, lessons, renderLesson) =>
-  `${greeting} ${relativeDay} у тебя:\n${lessons.map(renderLesson).join('\n')}`;
+  `${greeting} ${relativeDay} у тебя:\n${lessons.map(renderLesson).join("\n")}`;
 
 const toNotification = (bucket, relativeDay, greeting) => {
   const { person, role, lessons } = bucket;
-  
+
   const sorted = [...lessons].sort((a, z) => a.time.localeCompare(z.time));
-  const renderLesson = role === 'teacher' ? renderTeacherLesson : renderStudentLesson;
+  const renderLesson =
+    role === "teacher" ? renderTeacherLesson : renderStudentLesson;
 
   return {
     personId: person.id,
@@ -105,17 +117,22 @@ const toNotification = (bucket, relativeDay, greeting) => {
       time: l.time,
       className: l.className,
       type: l.type,
-      ...(role === 'teacher' ? { students: cleanNames(l.students) } : {}),
+      ...(role === "teacher" ? { students: cleanNames(l.students) } : {}),
     })),
     text: renderText(greeting, relativeDay, sorted, renderLesson),
   };
 };
 
 // ---------- Точка входа для дня ----------
-export const buildDayNotifications = (day, {
-  studentIndex, teacherIndex, today, greeting,
-}) => {
-  const { buckets, unresolved } = collectBuckets(day, studentIndex, teacherIndex);
+export const buildDayNotifications = (
+  day,
+  { studentIndex, teacherIndex, today, greeting }
+) => {
+  const { buckets, unresolved } = collectBuckets(
+    day,
+    studentIndex,
+    teacherIndex
+  );
   const relativeDay = formatRelativeDay(day.date, today);
 
   const byRole = (role) =>
@@ -126,8 +143,24 @@ export const buildDayNotifications = (day, {
   return {
     date: day.date,
     relativeDay,
-    students: byRole('student'),
-    teachers: byRole('teacher'),
+    students: byRole("student"),
+    teachers: byRole("teacher"),
     unresolved,
   };
 };
+
+// ============================================================
+// Рендер: ЧАТ (сводка по свободным классам)
+// ============================================================
+const renderChatDay = (day) => {
+  const lines = Object.entries(day.availabilityByClass).map(
+    ([className, { free }]) => {
+      const times = free.length ? free.join(", ") : "нет свободных слотов";
+      return `— ${className}: ${times}`;
+    }
+  );
+  return `*${day.relativeDay}, ${day.date}:*\n${lines.join("\n")}`;
+};
+
+export const renderChatSummary = (days) =>
+  ["Свободные слоты для репетиций", "", ...days.map(renderChatDay)].join("\n");
