@@ -15,7 +15,7 @@ import { createSendChatSummary } from './application/sendChatSummary';
 import creds from '../service_account.json' with { type: 'json' };
 
 const main = async () => {
-  const dates = ['02.09.2026', '03.09.2026'];
+  const dates = ['01.09.2026', '02.09.2026'];
   //const dates = [today, addDays(today, 1)]
   const today = toDdMmYyyy(new Date());
   
@@ -60,7 +60,7 @@ const main = async () => {
   const journal = createJournal(`${config.paths.outputDir}/journal.json`);
   const sendNotifications = createSendNotifications({ vkClient, journal });
 
-  const result = await sendNotifications({ plan });
+  const result = await sendNotifications({ plan, runDate: today });
 
   const reportFile = `send-report-${dates.map(toIsoDate).join('_')}.json`;
   await save(reportFile, result);
@@ -84,13 +84,7 @@ const main = async () => {
     console.warn('⚠️ VK_ADMIN_USER_ID не задан — отчёт не отправлен');
   }
 
-  // ---------- Сводка ----------
-  console.log(`\n✅ отправлено: ${result.sent.length}`);
-  console.log(`↩️ пропущено:  ${result.skipped.length}`);
-  console.log(`⚠️ ошибок:     ${result.failed.length}`);
-  if (result.failed.length) console.table(result.failed.map(({ fullName, role, reason }) => ({ fullName, role, reason })));
-
-const daysForChat = days.map((d) => ({
+  const daysForChat = days.map((d) => ({
   ...d,
   relativeDay: formatRelativeDay(d.date, today),
 }));
@@ -108,6 +102,11 @@ if (chatResult.sent) {
 } else {
   console.error(`❌ Ошибка отправки сводки: ${chatResult.error}`);
 }
+  // ---------- Сводка ----------
+  console.log(`\n✅ отправлено: ${result.sent.length}`);
+  console.log(`↩️ пропущено:  ${result.skipped.length}`);
+  console.log(`⚠️ ошибок:     ${result.failed.length}`);
+  if (result.failed.length) console.table(result.failed.map(({ fullName, role, reason }) => ({ fullName, role, reason })));
 };
 
 main().catch((e) => { console.error(e); process.exit(1); });
