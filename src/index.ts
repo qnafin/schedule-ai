@@ -1,61 +1,22 @@
-// src/index.js
 import { createConfig } from './config.js';
 import { createAuthClient } from './adapters/googleAuth.js';
 import { connectToSheet } from './adapters/googleSheets.js';
 import { createRosterLoader } from './adapters/rosterSource.js';
 import { createBuildScheduleForDates } from './application/buildScheduleForDates.js';
 import { createBuildNotifications } from './application/buildNotifications.js';
+import { createSendNotifications } from './application/sendNotifications.js';
+import { createVkClient } from './adapters/vk.js';
+import { createJournal } from './adapters/journal.js';
 import { saveJsonTo } from './adapters/jsonFile.js';
-import { toIsoDate } from './utils/dates';
+import { toIsoDate, toDdMmYyyy } from './utils/dates.js';
+import { renderFailureReport } from './domain/reports.js';
 import creds from '../service_account.json' with { type: 'json' };
 
-// ---------- Сводка ----------
-const renderFreeByClass = (availabilityByClass) => {
-  const entries = Object.entries(availabilityByClass);
-  if (!entries.length) return ['  (нет данных о классах)'];
-
-  return entries.map(([className, { free }]) => {
-    const times = free.length ? free.join(', ') : '—';
-    return `    ${className}: ${times}`;
-  });
-};
-
-const printSummary = (plan, days) => {
-  const daysByDate = new Map(days.map((d) => [d.date, d]));
-
-  for (const day of plan.notifications) {
-    const schedule = daysByDate.get(day.date);
-
-    console.log(`\n=== ${day.date} (${day.relativeDay}) ===`);
-
-    console.log(`  Свободные классы для ваших репетиций:`);
-    if (schedule) {
-      for (const line of renderFreeByClass(schedule.availabilityByClass)) {
-        console.log(line);
-      }
-    } else {
-      console.log('  (расписание за этот день не собрано)');
-    }
-
-    console.log(`  Уведомления:`);
-    console.log(`    учеников: ${day.students.length}, преподавателей: ${day.teachers.length}`);
-    for (const s of day.students) console.log(`    → ${s.fullName}: ${s.text}`);
-    for (const t of day.teachers) console.log(`    → ${t.fullName}: ${t.text}`);
-
-    if (day.unresolved.length) console.log(`  ⚠️ не найдены:`, day.unresolved);
-  }
-
-  if (plan.conflicts.length) {
-    console.log(`\n⚠️ Конфликты в справочниках:`);
-    console.table(plan.conflicts);
-  }
-};
-
-// ---------- main ----------
 const main = async () => {
-  // Фиксированные даты — обе есть в таблице
-  const dates = ['01.09.2026', '02.09.2026'];
-  const today = dates[0]; // «сегодня» считаем первой датой из списка
+  const dates = ['02.09.2026', '03.09.2026'];
+  //const dates = [today, addDays(today, 1)]
+  const today = toDdMmYyyy(new Date());
+  
 
   const config = createConfig();
   const authClient = createAuthClient(creds);
@@ -81,12 +42,10 @@ const main = async () => {
   console.log(`💾 ${config.paths.outputDir}/students.json (${roster.students.length})`);
   console.log(`💾 ${config.paths.outputDir}/teachers.json (${roster.teachers.length})`);
 
-  // ---------- Уведомления ----------
+  // ---------- План уведомлений ----------
   const buildNotifications = createBuildNotifications();
   const plan = buildNotifications({
-    days,
-    roster,
-    today,
+    days, roster, today,
     greeting: config.notifications.greeting,
   });
 
@@ -94,8 +53,40 @@ const main = async () => {
   await save(notificationsFile, plan);
   console.log(`💾 ${config.paths.outputDir}/${notificationsFile}`);
 
+  // ---------- Отправка ----------
+  const vkClient = createVkClient({ token: process.env.VK_ACCESS_TOKEN });
+  const journal = createJournal(`${config.paths.outputDir}/journal.json`);
+  const sendNotifications = createSendNotifications({ vkClient, journal });
+
+  const result = await sendNotifications({ plan });
+
+  const reportFile = `send-report-${dates.map(toIsoDate).join('_')}.json`;
+  await save(reportFile, result);
+  console.log(`💾 ${config.paths.outputDir}/${reportFile}`);
+
+  // ---------- Отчёт админу ----------
+  const adminId = Number(process.env.VK_ADMIN_USER_ID);
+  if (adminId) {
+    const reportText = renderFailureReport({
+      failed: result.failed,
+      skipped: result.skipped,
+      sentCount: result.sent.length,
+    });
+    try {
+      await vkClient.send({ userId: adminId, text: reportText });
+      console.log('📨 Отчёт отправлен админу');
+    } catch (e) {
+      console.error('❌ Не удалось отправить отчёт админу:', e.message);
+    }
+  } else {
+    console.warn('⚠️ VK_ADMIN_USER_ID не задан — отчёт не отправлен');
+  }
+
   // ---------- Сводка ----------
-  printSummary(plan, days);
+  console.log(`\n✅ отправлено: ${result.sent.length}`);
+  console.log(`↩️ пропущено:  ${result.skipped.length}`);
+  console.log(`⚠️ ошибок:     ${result.failed.length}`);
+  if (result.failed.length) console.table(result.failed.map(({ fullName, role, reason }) => ({ fullName, role, reason })));
 };
 
 main().catch((e) => { console.error(e); process.exit(1); });

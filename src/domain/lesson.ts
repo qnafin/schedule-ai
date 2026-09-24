@@ -22,7 +22,7 @@ export const lessonToJSON = (l) => ({
   id: l.id,
   date: l.date,
   time: l.time,
-  class: l.className,
+  className: l.className,
   type: l.type,
   students: l.students,
   teachers: l.teachers,

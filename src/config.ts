@@ -41,7 +41,7 @@ export const createConfig = (overrides = {}) => ({
       columns: {
         id: "№",
         fullName: "ФИО",
-        notify: null,
+        notify: "Уведомлять",
         aliases: null,
         vkLink: "vk_link",
         phone: null,

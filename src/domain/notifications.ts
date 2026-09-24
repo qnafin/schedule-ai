@@ -69,19 +69,28 @@ const collectBuckets = (day, studentIndex, teacherIndex) => {
 };
 
 // ---------- Рендер ----------
-const renderStudentLesson = (l) => `${typeOf(l.type)} в ${l.time}`;
+const renderStudentLesson = (l) => {
+  const base = `— ${l.time} — ${typeOf(l.type)}`;
+  const cls = l.className ? ` (${l.className})` : '';
+  const teachers = cleanNames(l.teachers);
+  const teachersStr = teachers.length ? ` • ${joinWithAnd(teachers)}` : '';
+  return `${base}${cls}${teachersStr}`;
+};
 
 const renderTeacherLesson = (l) => {
-  const students = joinWithAnd(cleanNames(l.students));
-  const extras = [l.className, students].filter(Boolean).join(', ');
-  return `${typeOf(l.type)} в ${l.time}${extras ? ` (${extras})` : ''}`;
+  const base = `— ${l.time} — ${typeOf(l.type)}`;
+  const cls = l.className ? ` (${l.className})` : '';
+  const students = cleanNames(l.students);
+  const studentsStr = students.length ? ` • ${joinWithAnd(students)}` : '';
+  return `${base}${cls}${studentsStr}`;
 };
 
 const renderText = (greeting, relativeDay, lessons, renderLesson) =>
-  `${greeting} ${relativeDay} у тебя ${joinWithAnd(lessons.map(renderLesson))}`;
+  `${greeting} ${relativeDay} у тебя:\n${lessons.map(renderLesson).join('\n')}`;
 
 const toNotification = (bucket, relativeDay, greeting) => {
   const { person, role, lessons } = bucket;
+  
   const sorted = [...lessons].sort((a, z) => a.time.localeCompare(z.time));
   const renderLesson = role === 'teacher' ? renderTeacherLesson : renderStudentLesson;
 
@@ -94,7 +103,7 @@ const toNotification = (bucket, relativeDay, greeting) => {
     lessons: sorted.map((l) => ({
       id: l.id,
       time: l.time,
-      class: l.className,
+      className: l.className,
       type: l.type,
       ...(role === 'teacher' ? { students: cleanNames(l.students) } : {}),
     })),
