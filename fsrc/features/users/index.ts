@@ -1,7 +1,6 @@
 export type {
   User,
   UserColumns,
-  RowReader,
   VkRef,
   NotifyChannel,
 } from './user';
@@ -24,6 +23,6 @@ export type {
 export { getUsers, invalidateUsersCache } from './services/getUsers';
 
 export type { FoundUser } from './services/findUser';
-export { findUser, invalidateUsersIndex } from './services/findUser';
+export { findStudent,findTeacher, invalidateUsersIndex } from './services/findUser';
 
 export { registerUserTools } from './mcp';

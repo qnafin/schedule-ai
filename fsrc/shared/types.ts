@@ -1,0 +1,1 @@
+export type RowReader = (column: string) => unknown;

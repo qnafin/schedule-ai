@@ -1,3 +1,5 @@
+import type { RowReader } from '../../shared/types';
+
 export type VkRef =
   | { type: 'id'; value: number }
   | { type: 'screen'; value: string };
@@ -21,8 +23,7 @@ export type UserColumns = {
   phone?: string | null;
 };
 
-/** Минимальный контракт строки таблицы — без зависимости на google-spreadsheet */
-export type RowReader = (column: string) => unknown;
+
 
 export const normalizeName = (s: unknown): string =>
   String(s ?? '').trim().replace(/\s+/g, ' ');
