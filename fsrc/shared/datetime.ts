@@ -30,3 +30,20 @@ export const toRuDate = (iso: string): string => {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
 };
+
+
+const isoToUtc = (iso: string): number | null => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+};
+
+/** Разница в днях: to - from. 0, если что-то не парсится. */
+export const diffDays = (fromIso: string, toIso: string): number => {
+  const a = isoToUtc(fromIso);
+  const b = isoToUtc(toIso);
+  if (a === null || b === null) return 0;
+  return Math.round((b - a) / 86_400_000);
+};
+
+export const todayIso = (): string => new Date().toISOString().slice(0, 10);

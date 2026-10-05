@@ -47,7 +47,9 @@ const main = async () => {
   // ---------- План уведомлений ----------
   const buildNotifications = createBuildNotifications();
   const plan = buildNotifications({
-    days, roster, today,
+    days, 
+    roster, 
+    today,
     greeting: config.notifications.greeting,
   });
 

@@ -5,6 +5,8 @@ import { createGoogleAuth } from '../infrastructure/google/auth';
 
 import { registerUserTools } from '../features/users/mcp';
 import { registerScheduleTools } from '../features/schedule/mcp';
+import { registerNotificationTools } from '../features/notifications/mcp';
+
 import {client_email, private_key} from '../../service_account.json' with { type: 'json' };
 
 export const buildServer = (): FastMCP => {
@@ -20,6 +22,7 @@ export const buildServer = (): FastMCP => {
   // Регистраторы фич. Новая фича — новая строка здесь.
   registerUserTools(server, { config, authClient });
   registerScheduleTools(server, { config, authClient });
+  registerNotificationTools(server, {config, authClient});
   
   return server;
 };
