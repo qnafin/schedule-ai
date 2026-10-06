@@ -1,24 +1,31 @@
 import { VK } from 'vk-io';
+import { buildClient } from '../assistant/client.js';
+import { Assistant } from '../assistant/assistant.js';
+import { buildMcpTools, buildModelUri, INSTRUCTIONS } from '../assistant/config.js';
+import { createRouter } from './router.js';
 
-import { createRouter } from './router';
+const main = async (): Promise<void> => {
+  const token = process.env.VK_ACCESS_TOKEN;
+  if (!token) throw new Error('VK_ACCESS_TOKEN не задан');
 
-const main = async () => {
-  
+  const { client, folderId } = buildClient();
 
-  const vk = new VK({
-    token: process.env.VK_ACCESS_TOKEN,
-    apiVersion: '5.199',
+  const assistant = new Assistant({
+    client,
+    model: buildModelUri(folderId),
+    instructions: INSTRUCTIONS,
+    tools: buildMcpTools(),
   });
 
-  const router = createRouter({ vk });
+  const vk = new VK({ token, apiVersion: '5.199' });
+  const router = createRouter({ assistant });
 
   vk.updates.on('message_new', async (context) => {
-    // Игнорируем исходящие и сообщения от самого бота
     if (context.isOutbox) return;
-   
-    // Обрабатываем только личные сообщения или упоминания в чате
+
+    // В беседах реагируем только на команды, начинающиеся со слэша
     if (context.isChat && !context.text?.startsWith('/')) return;
-    console.log(context)
+
     try {
       await router.handle(context);
     } catch (e) {
@@ -28,7 +35,7 @@ const main = async () => {
   });
 
   await vk.updates.startPolling();
-  console.log('🤖 Бот слушает сообщения');
+  console.log('🤖 Бот слушает сообщения. MCP:', buildMcpTools().map((t) => t.server_label).join(', '));
 };
 
 main().catch((e) => {
