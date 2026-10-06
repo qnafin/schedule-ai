@@ -1,7 +1,8 @@
 import type { VkClient } from './client';
 import { VkError } from './client';
 
-// Структурно совместим с `VkRef` из users, но infrastructure не зависит от домена.
+// ---------- Личка ----------
+
 export type VkRecipient =
   | { type: 'id'; value: number }
   | { type: 'screen'; value: string };
@@ -9,9 +10,7 @@ export type VkRecipient =
 export type VkMessage = {
   to: VkRecipient;
   text: string;
-  /** Idempotency key. Если задан — из него делается random_id. */
   dedupKey?: string;
-  /** Перебивает dedupKey, если нужен явный random_id. */
   randomId?: number;
 };
 
@@ -20,6 +19,19 @@ export type VkSkipReason = 'unresolved-screen';
 export type VkSendResult =
   | { status: 'sent'; messageId: number }
   | { status: 'skipped'; reason: VkSkipReason }
+  | { status: 'failed'; error: string; retryable: boolean };
+
+// ---------- Чат ----------
+
+export type VkChatMessage = {
+  peerId: number;
+  text: string;
+  dedupKey?: string;
+  randomId?: number;
+};
+
+export type VkChatSendResult =
+  | { status: 'sent'; messageId: number }
   | { status: 'failed'; error: string; retryable: boolean };
 
 // ---------- Внутреннее ----------
@@ -39,25 +51,24 @@ const resolveUserId = async (
   to: VkRecipient,
 ): Promise<{ id: number } | { skip: VkSkipReason }> => {
   if (to.type === 'id') return { id: to.value };
-
   const cached = screenCache.get(to.value);
   if (cached) return { id: cached };
-
   const resolved = await vk.resolveScreenName(to.value);
   if (!resolved) return { skip: 'unresolved-screen' };
-
   screenCache.set(to.value, resolved);
   return { id: resolved };
 };
 
-const toFailure = (err: unknown): VkSendResult => {
+const toFailure = (err: unknown): { error: string; retryable: boolean } => {
   const vkErr = err instanceof VkError ? err : null;
   return {
-    status: 'failed',
     error: (err as Error).message,
     retryable: vkErr ? vkErr.retryable : true,
   };
 };
+
+const pickRandomId = (randomId?: number, dedupKey?: string): number =>
+  randomId ?? (dedupKey ? hashString(dedupKey) : Date.now());
 
 // ---------- Публичный API ----------
 
@@ -69,29 +80,40 @@ export const sendVkMessage = async (
   try {
     resolved = await resolveUserId(vk, msg.to);
   } catch (err) {
-    return toFailure(err);
+    return { status: 'failed', ...toFailure(err) };
   }
 
   if ('skip' in resolved) {
     return { status: 'skipped', reason: resolved.skip };
   }
 
-  const randomId =
-    msg.randomId ?? (msg.dedupKey ? hashString(msg.dedupKey) : Date.now());
-
   try {
     const messageId = await vk.sendMessage({
       userId: resolved.id,
       text: msg.text,
-      randomId,
+      randomId: pickRandomId(msg.randomId, msg.dedupKey),
     });
     return { status: 'sent', messageId };
   } catch (err) {
-    return toFailure(err);
+    return { status: 'failed', ...toFailure(err) };
   }
 };
 
-/** Сбросить кэш screen-name → id. Для тестов и ручной инвалидации. */
-export const clearVkScreenCache = (): void => {
-  screenCache.clear();
+export const sendVkToChat = async (
+  vk: VkClient,
+  msg: VkChatMessage,
+): Promise<VkChatSendResult> => {
+  try {
+    const messageId = await vk.sendToChat({
+      peerId: msg.peerId,
+      text: msg.text,
+      randomId: pickRandomId(msg.randomId, msg.dedupKey),
+    });
+    return { status: 'sent', messageId };
+  } catch (err) {
+    return { status: 'failed', ...toFailure(err) };
+  }
 };
+
+/** Сбросить кэш screen-name → id. Для тестов. */
+export const clearVkScreenCache = (): void => screenCache.clear();

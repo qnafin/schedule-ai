@@ -10,8 +10,8 @@
     "mcp": "node --env-file=.env ./node_modules/.bin/fastmcp run fsrc/mcp/server.ts",
     "mcp:inspect": "node --env-file=.env ./node_modules/.bin/fastmcp inspect --file fsrc/mcp/server.ts",
     "mcp:dev": "node --env-file=.env ./node_modules/.bin/fastmcp dev inspector fsrc/mcp/server.ts ", 
-    "mcp:http": "npx fastmcp run fsrc/mcp/server.ts --transport http --port 3000",
-    "daily": "npx tsx --env-file=.env fsrc/cli/daily.ts"
+    "mcp:http": "node --env-file=.env ./node_modules/.bin/fastmcp run fsrc/mcp/server.ts --transport http --port 3000",
+    "daily": "npx tsx fsrc/cli/daily.ts --dates 2026-09-01,2026-09-02"
   },
   "keywords": [],
   "author": "",

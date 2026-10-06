@@ -1,9 +1,5 @@
-import { pad2 } from "./text";
-/**
- * Приводит дату к ISO `YYYY-MM-DD`.
- * Понимает: Date, `01.09.2026`, `2026-09-01`.
- * Непонятное возвращает как есть (обрезанным).
- */
+export const pad2 = (n: number | string): string => String(n).padStart(2, '0');
+
 export const normalizeDate = (v: unknown): string => {
   if (!v) return '';
   if (v instanceof Date) {
@@ -16,7 +12,6 @@ export const normalizeDate = (v: unknown): string => {
   return s;
 };
 
-/** Приводит время к `HH:MM`. */
 export const normalizeTime = (v: unknown): string => {
   if (!v) return '';
   if (v instanceof Date) return `${pad2(v.getHours())}:${pad2(v.getMinutes())}`;
@@ -25,20 +20,12 @@ export const normalizeTime = (v: unknown): string => {
   return m ? `${pad2(m[1])}:${m[2]}` : s;
 };
 
-/** Обратно в русский формат — для отображения. */
-export const toRuDate = (iso: string): string => {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
-};
-
-
 const isoToUtc = (iso: string): number | null => {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
   return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 };
 
-/** Разница в днях: to - from. 0, если что-то не парсится. */
 export const diffDays = (fromIso: string, toIso: string): number => {
   const a = isoToUtc(fromIso);
   const b = isoToUtc(toIso);
@@ -46,4 +33,23 @@ export const diffDays = (fromIso: string, toIso: string): number => {
   return Math.round((b - a) / 86_400_000);
 };
 
-export const todayIso = (): string => new Date().toISOString().slice(0, 10);
+/** Текущая дата (YYYY-MM-DD), локальное время сервера. */
+export const todayIso = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+/** Текущее время (HH:MM), локальное время сервера. */
+export const nowTime = (): string => {
+  const d = new Date();
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+/** Прибавить N дней к ISO-дате. */
+export const addDays = (iso: string, days: number): string => {
+  const utc = isoToUtc(iso);
+  if (utc === null) return iso;
+  const d = new Date(utc);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};

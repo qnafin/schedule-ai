@@ -1,61 +1,104 @@
-// fsrc/cli/daily.ts
+#!/usr/bin/env node
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { createConfig } from '../config';
-import {client_email, private_key} from '../../service_account.json' with { type: 'json' };
+import {
+  client_email,
+  private_key,
+} from '../../service_account.json' with { type: 'json' };
 
 import { createGoogleAuth } from '../infrastructure/google/auth';
-import { getUsers } from '../features/users';
-import { getSchedule } from '../features/schedule';
+import { createVkClient } from '../infrastructure/vk';
 
-const save = async (dir: string, name: string, data: unknown): Promise<void> => {
+import { getNotifications, runDaily } from '../features/notifications';
+
+const parseArg = (name: string): string | undefined => {
+  const i = process.argv.indexOf(name);
+  return i === -1 ? undefined : process.argv[i + 1];
+};
+const hasFlag = (name: string): boolean => process.argv.includes(name);
+const parseDates = (): string[] | undefined => {
+  const raw = parseArg('--dates');
+  if (!raw) return undefined;
+  const d = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return d.length ? d : undefined;
+};
+
+const save = async (dir: string, name: string, data: unknown) => {
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, name), JSON.stringify(data, null, 2), 'utf8');
 };
 
-/** Достаёт --dates 2026-09-01,2026-09-02 из argv. Если не указано — undefined. */
-const parseDatesArg = (): string[] | undefined => {
-  const i = process.argv.indexOf('--dates');
-  if (i === -1) return undefined;
-  const raw = process.argv[i + 1];
-  if (!raw) return undefined;
-  const dates = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  return dates.length ? dates : undefined;
-};
-
 const main = async (): Promise<void> => {
   const config = createConfig();
+  const { outputDir } = config.paths;
+
+  const dryRun = hasFlag('--dry-run');
+  const noSave = hasFlag('--no-save');
+  const noUsers = hasFlag('--no-users');
+  const noChat = hasFlag('--no-chat');
+
+  const dates = parseDates();
 
   const authClient = createGoogleAuth({
     googleServiceAccountEmail: client_email,
     googlePrivateKey: private_key,
   });
-  // Пользователи
-  const users = await getUsers(config, authClient);
-  const { outputDir } = config.paths;
 
-  await save(outputDir, 'students.json', users.students);
-  await save(outputDir, 'teachers.json', users.teachers);
+  const vkToken = process.env.VK_ACCESS_TOKEN;
+  const chatPeerId = Number(process.env.VK_CHAT_PEER_ID) || undefined;
+  const adminUserId = Number(process.env.VK_ADMIN_USER_ID) || undefined;
 
-  console.log(`💾 ${outputDir}/students.json (${users.students.length})`);
-  console.log(`💾 ${outputDir}/teachers.json (${users.teachers.length})`);
+  // ----- Сохранить план для отладки -----
+  if (!noSave) {
+    const plan = await getNotifications(config, authClient, { dates });
+    const suffix = dates?.join('_') ?? 'all';
+    await save(outputDir, `notifications-${suffix}.json`, plan);
+    console.log(`💾 ${outputDir}/notifications-${suffix}.json`);
+  }
 
-    // Расписание
-  const dates = parseDatesArg();
-  const days = await getSchedule(config, authClient, { dates });
+  // ----- Dry-run: показать план и выйти -----
+  if (dryRun) {
+    const plan = await getNotifications(config, authClient, { dates });
+    console.log(`📅 today=${plan.today}, notifications=${plan.notifications.length}`);
+    console.log('\n🔎 DRY RUN\n');
+    for (const n of plan.notifications) {
+      console.log(`--- ${n.relativeDay}, ${n.fullName} (${n.role}) ---`);
+      console.log(n.text, '\n');
+    }
+    return;
+  }
 
-  const name = dates
-    ? `schedule-${dates.join('_')}.json`
-    : 'schedule.json';
+  if (!vkToken) throw new Error('VK_ACCESS_TOKEN не задан');
 
-  await save(outputDir, name, days);
-  console.log(
-    `💾 ${outputDir}/${name} (${days.length} дн., ${days.reduce(
-      (s, d) => s + d.totals.lessons,
-      0,
-    )} занятий)`,
-  );
+  const vk = createVkClient({ token: vkToken });
+  const scope: 'all' | 'users' | 'chat' =
+    noUsers && !noChat ? 'chat' : !noUsers && noChat ? 'users' : 'all';
+
+  const result = await runDaily(config, authClient, vk, {
+    adminUserId,
+    chatPeerId,
+    scope,
+    dates,
+  });
+
+  if (result.personal) {
+    console.log(
+      `✅ users: sent=${result.personal.counts.sent} ` +
+        `skipped=${result.personal.counts.skipped} ` +
+        `failed=${result.personal.counts.failed}`,
+    );
+  }
+  if (result.admin) {
+    console.log(`📤 admin report: ${result.admin.status}`);
+  }
+  if (result.chat) {
+    console.log(`💬 chat: ${result.chat.status}`);
+  }
+  if (result.unresolved.length) {
+    console.warn(`⚠️  unresolved: ${result.unresolved.length}`);
+  }
 };
 
 main().catch((err) => {

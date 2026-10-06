@@ -12,5 +12,7 @@ export type {
   VkMessage,
   VkSendResult,
   VkSkipReason,
+  VkChatMessage,
+  VkChatSendResult,
 } from './sender';
-export { sendVkMessage, clearVkScreenCache } from './sender';
+export { sendVkMessage, sendVkToChat, clearVkScreenCache } from './sender';

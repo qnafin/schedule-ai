@@ -1,56 +1,21 @@
 import { splitNames } from '../../shared/text';
 import { diffDays } from '../../shared/datetime';
 import { buildUsersIndex, resolveUser } from '../users/usersIndex';
-import type { User, NotifyChannel, VkRef } from '../users/user';
-import type { Users } from '../users/services/getUsers';
+import type { User,  } from '../users/user';
 import type { DaySchedule } from '../schedule/daySchedule';
 import type { Lesson } from '../schedule/lesson';
-
-// ---------- Типы ----------
-
-export type NotificationRole = 'student' | 'teacher';
-
-export type Notification = {
-  date: string;             // ISO YYYY-MM-DD
-  relativeDay: string;      // «Сегодня» / «Завтра» / «1 сентября»
-  personId: string;
-  fullName: string;
-  role: NotificationRole;
-  channel: NotifyChannel | null;
-  vk: VkRef | null;
-  phone: string;
-  lessons: Lesson[];
-  text: string;
-};
-
-export type Unresolved = {
-  date: string;
-  lessonId: string;
-  role: NotificationRole;
-  name: string;
-};
-
-export type NotificationPlan = {
-  generatedAt: string;
-  today: string;
-  notifications: Notification[];
-  unresolved: Unresolved[];
-};
-
-export type BuildNotificationsInput = {
-  days: DaySchedule[];
-  users: Users;
-  today: string;
-  greeting: string;
-};
-
+import {pad2} from '../../shared/text'
+import type {NotificationRole, NotificationsConfig, Unresolved, NotificationPlan, BuildNotificationsInput} from './types'
 // ---------- Формат ----------
 
 const MONTHS_RU = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
 ];
-
+export const workHoursOf = (config: NotificationsConfig) => ({
+      from: `${pad2(config.schedule.workStartHour)}:00`,
+      to: `${pad2(config.schedule.workEndHour)}:00`,
+    });
 export const formatRelativeDay = (date: string, today: string): string => {
   if (date === today) return 'Сегодня';
   const diff = diffDays(today, date);
@@ -89,15 +54,27 @@ export const renderNotification = (
     .map((l) => renderLesson(l, role))
     .join('\n')}`;
 
-export const renderChatSummary = (days: DaySchedule[], today: string): string => {
+export const renderChatSummary = (
+  days: DaySchedule[],
+  today: string,
+  workHours: { from: string; to: string },
+): string => {
   const blocks = days.map((day) => {
+    const title = `${formatRelativeDay(day.date, today)}, ${day.date}:`;
+
+    // День пустой — конкретики по классам нет, пишем общий диапазон
+    if (day.lessons.length === 0) {
+      return `${title}\nвремя с ${workHours.from} до ${workHours.to} свободно, записывайтесь активнее`;
+    }
+
     const lines = Object.entries(day.availabilityByClass).map(
       ([className, { free }]) =>
         `— ${className}: ${free.length ? free.join(', ') : 'нет свободных слотов'}`,
     );
-    return `*${formatRelativeDay(day.date, today)}, ${day.date}:*\n${lines.join('\n')}`;
+    return `${title}\n${lines.join('\n')}`;
   });
-  return ['Свободные слоты для репетиций', '', ...blocks].join('\n');
+
+  return ['Свободные время для репетиций', '', ...blocks].join('\n');
 };
 
 // ---------- Сборка ----------

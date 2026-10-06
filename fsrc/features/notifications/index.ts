@@ -1,4 +1,4 @@
-export type { Notification, NotificationPlan } from './notifications';
+
 export {
   buildNotifications,
   formatRelativeDay,
@@ -9,10 +9,15 @@ export {
 export type {
   NotificationsConfig,
   GetNotificationsOptions,
+  BuildNotificationsInput,
   DeliveryOutcome,
   DeliveryReport,
   NotificationSender,
   SkipReason,
+  Unresolved,
+  AdminReportInput,
+  AdminReportResult,
+   Notification, NotificationPlan
 } from './types';
 
 export { createVkSender } from './vkSender';
@@ -20,5 +25,16 @@ export { createVkSender } from './vkSender';
 export { getNotifications } from './services/getNotifications';
 export { getChatSummary } from './services/getChatSummary';
 export { sendNotifications } from './services/sendNotifications';
+
+export type {
+  SendChatSummaryOptions,
+  SendChatSummaryResult,
+} from './services/sendChatSummary';
+export { sendChatSummary } from './services/sendChatSummary';
+
+export { sendAdminReport, renderReport } from './services/sendAdminReport';
+
+export type { RunDailyOptions, RunDailyResult } from './services/runDaily';
+export { runDaily } from './services/runDaily';
 
 export { registerNotificationTools } from './mcp';
