@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { FastMCP } from '@prefecthq/fastmcp-ts/server';
+import type { FastMCP } from 'fastmcp';
 import type { JWT } from 'google-auth-library';
 
 import type { VkClient } from '../../infrastructure/vk';
@@ -31,50 +31,42 @@ export const registerNotificationTools = (
   server: FastMCP,
   { config, authClient, vk, chatPeerId, adminUserId }: Deps,
 ) => {
-  // ---------- Read ----------
-
-  server.tool(
-    {
-      name: 'get_notifications',
-      description:
-        'План уведомлений на указанные даты. Прошедшие уроки не показываются.',
-      input: z.object({ dates: datesSchema, today: todaySchema }),
-    },
-    async ({ dates, today }) =>
+  server.addTool({
+    name: 'get_notifications',
+    description:
+      'План уведомлений на указанные даты. Прошедшие уроки не показываются.',
+    parameters: z.object({ dates: datesSchema, today: todaySchema }),
+    execute: async ({ dates, today }) =>
       JSON.stringify(
         await getNotifications(config, authClient, { dates, today }),
         null,
         2,
       ),
-  );
+  });
 
-  server.tool(
-    {
-      name: 'get_chat_summary',
-      description: 'Сводка свободных слотов по классам для просмотра.',
-      input: z.object({ dates: datesSchema, today: todaySchema }),
+  server.addTool({
+    name: 'get_chat_summary',
+    description: 'Сводка свободных слотов по классам для просмотра.',
+    parameters: z.object({ dates: datesSchema, today: todaySchema }),
+    execute: async ({ dates, today }) => {
+      const text = await getChatSummary(config, authClient, { dates, today });
+      return text ?? 'Нет данных';
     },
-    async ({ dates, today }) =>
-      getChatSummary(config, authClient, { dates, today }),
-  );
+  });
 
   if (!vk) return;
 
-  // ---------- Send: ЛС + отчёт админу ----------
-
-  server.tool(
-    {
-      name: 'send_personal_notifications',
-      description:
-        'Разослать ЛИЧНЫЕ уведомления о занятиях в VK (сегодня и завтра по ' +
-        'умолчанию). Если задан VK_ADMIN_USER_ID — админу уйдёт отчёт о том, ' +
-        'кто не получил и почему. НЕОБРАТИМАЯ ОПЕРАЦИЯ.',
-      input: z.object({
-        dates: datesSchema.describe('Если не указано — сегодня и завтра.'),
-        confirm: confirmSchema,
-      }),
-    },
-    async ({ dates }) => {
+  server.addTool({
+    name: 'send_personal_notifications',
+    description:
+      'Разослать ЛИЧНЫЕ уведомления о занятиях в VK (сегодня и завтра по ' +
+      'умолчанию). Если задан VK_ADMIN_USER_ID — админу уйдёт отчёт о том, ' +
+      'кто не получил и почему. НЕОБРАТИМАЯ ОПЕРАЦИЯ.',
+    parameters: z.object({
+      dates: datesSchema.describe('Если не указано — сегодня и завтра.'),
+      confirm: confirmSchema,
+    }),
+    execute: async ({ dates }) => {
       const plan = await getNotifications(config, authClient, { dates });
       const report = await sendNotifications(plan, createVkSender(vk));
 
@@ -88,56 +80,43 @@ export const registerNotificationTools = (
         });
       }
 
-      return JSON.stringify(
-        { personal: report, admin },
-        null,
-        2,
-      );
+      return JSON.stringify({ personal: report, admin }, null, 2);
     },
-  );
-
-  // ---------- Send: сводка в чат ----------
+  });
 
   if (chatPeerId) {
-    server.tool(
-      {
-        name: 'send_chat_summary',
-        description:
-          'Отправить в VK-чат сводку свободных слотов для РЕПЕТИЦИЙ (сегодня и завтра ' +
-          'по умолчанию, прошедшие слоты исключены). Идемпотентно.',
-        input: z.object({
-          dates: datesSchema,
-          confirm: confirmSchema,
-        }),
-      },
-      async ({ dates }) => {
+    server.addTool({
+      name: 'send_chat_summary',
+      description:
+        'Отправить в VK-чат сводку свободных слотов для РЕПЕТИЦИЙ (сегодня и ' +
+        'завтра по умолчанию, прошедшие слоты исключены). Идемпотентно.',
+      parameters: z.object({
+        dates: datesSchema,
+        confirm: confirmSchema,
+      }),
+      execute: async ({ dates }) => {
         const result = await sendChatSummary(config, authClient, vk, {
           peerId: chatPeerId,
           dates,
         });
         return JSON.stringify(result, null, 2);
       },
-    );
+    });
   }
 
-  server.tool(
-    {
-      name: 'run_daily',
-      description:
-        'ЗАПУСТИТЬ полный цикл: ЛС всем по предстоящим урокам + отчёт админу + сводка по репетициям в чат. ' +
-        'НЕОБРАТИМАЯ ОПЕРАЦИЯ. Вызывай только по явной просьбе пользователя. ' +
-        'Для предпросмотра используй dryRun: true.',
-      input: z.object({
-        scope: z
-          .enum(['all', 'users', 'chat'])
-          .optional()
-          .describe('all по умолчанию.'),
-        dates: datesSchema,
-        dryRun: z.boolean().optional(),
-        confirm: confirmSchema,
-      }),
-    },
-    async ({ scope, dates, dryRun }) => {
+  server.addTool({
+    name: 'run_daily',
+    description:
+      'ЗАПУСТИТЬ полный цикл: ЛС всем по предстоящим урокам + отчёт админу + ' +
+      'сводка по репетициям в чат. НЕОБРАТИМАЯ ОПЕРАЦИЯ. ' +
+      'Для предпросмотра используй dryRun: true.',
+    parameters: z.object({
+      scope: z.enum(['all', 'users', 'chat']).optional(),
+      dates: datesSchema,
+      dryRun: z.boolean().optional(),
+      confirm: confirmSchema,
+    }),
+    execute: async ({ scope, dates, dryRun }) => {
       const result = await runDaily(config, authClient, vk, {
         adminUserId,
         chatPeerId,
@@ -147,5 +126,5 @@ export const registerNotificationTools = (
       });
       return JSON.stringify(result, null, 2);
     },
-  );
+  });
 };
