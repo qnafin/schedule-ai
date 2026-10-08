@@ -3,10 +3,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { createConfig } from '../config';
-import {
-  client_email,
-  private_key,
-} from '../../service_account.json' with { type: 'json' };
+const { client_email, private_key } = JSON.parse(
+  process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}"
+);
 
 import { createGoogleAuth } from '../infrastructure/google/auth';
 import { createVkClient } from '../infrastructure/vk';

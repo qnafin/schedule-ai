@@ -1,18 +1,16 @@
-import { FastMCP } from 'fastmcp';
+import { FastMCP } from "fastmcp";
 
-import { createConfig } from '../config';
-import { createGoogleAuth } from '../infrastructure/google/auth';
-import { createVkClient } from '../infrastructure/vk';
+import { createConfig } from "../config";
+import { createGoogleAuth } from "../infrastructure/google/auth";
+import { createVkClient } from "../infrastructure/vk";
 
-import { registerUserTools } from '../features/users/mcp';
-import { registerScheduleTools } from '../features/schedule/mcp';
-import { registerNotificationTools } from '../features/notifications/mcp';
+import { registerUserTools } from "../features/users/mcp";
+import { registerScheduleTools } from "../features/schedule/mcp";
+import { registerNotificationTools } from "../features/notifications/mcp";
 
-import {
-  client_email,
-  private_key,
-} from '../../service_account.json' with { type: 'json' };
-
+const { client_email, private_key } = JSON.parse(
+  process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}"
+);
 const toNum = (v: string | undefined): number | undefined =>
   v ? Number(v) : undefined;
 
@@ -31,8 +29,8 @@ export const buildServer = (): FastMCP => {
   const vk = vkToken ? createVkClient({ token: vkToken }) : undefined;
 
   const server = new FastMCP({
-    name: 'schedule-ai',
-    version: '0.1.0',
+    name: "schedule-ai",
+    version: "0.1.0",
   });
 
   registerUserTools(server, { config, authClient });
