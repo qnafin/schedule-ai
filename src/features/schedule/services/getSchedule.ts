@@ -10,11 +10,10 @@ import type { DaySchedule } from '../daySchedule';
 import { isLessonEmpty, lessonFromRow } from '../lesson';
 import type { Lesson, LessonColumns } from '../lesson';
 import { buildSlots } from '../slots';
+import { listRoomNames } from '../../rooms/services/getRooms';
+import type { RoomsConfig } from '../../rooms/services/getRooms';
 
-// ---------- Конфигурация ----------
-
-export type ScheduleConfig = {
-  spreadsheetId: string;
+export type ScheduleConfig = RoomsConfig & {
   schedule: {
     sheetName: string;
     columns: LessonColumns;
@@ -23,8 +22,6 @@ export type ScheduleConfig = {
     slotMinutes: number;
   };
 };
-
-// ---------- Загрузка ----------
 
 export const getLessons = async (
   config: ScheduleConfig,
@@ -39,10 +36,7 @@ export const getLessons = async (
     .filter((l) => !isLessonEmpty(l));
 };
 
-// ---------- Публичный API ----------
-
 export type GetScheduleOptions = {
-  /** ISO-даты (YYYY-MM-DD). Если не указаны — берутся все даты из расписания. */
   dates?: string[];
 };
 
@@ -59,7 +53,11 @@ export const getSchedule = async (
   authClient: JWT,
   options: GetScheduleOptions = {},
 ): Promise<DaySchedule[]> => {
-  const lessons = await getLessons(config, authClient);
+  const [lessons, allRoomNames] = await Promise.all([
+    getLessons(config, authClient),
+    listRoomNames(config, authClient),
+  ]);
+
   const slots = buildSlots(config.schedule);
 
   const dates =
@@ -76,6 +74,6 @@ export const getSchedule = async (
   }
 
   return dates.map((date) =>
-    buildDaySchedule(date, byDate.get(date) ?? [], slots),
+    buildDaySchedule(date, byDate.get(date) ?? [], slots, allRoomNames),
   );
 };

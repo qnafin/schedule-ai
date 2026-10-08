@@ -17,16 +17,20 @@ export type DaySchedule = {
   availabilityByRoom: Record<string, Availability>;
 };
 
-// ---------- Helpers (экспорт для тестов) ----------
+// ---------- Helpers ----------
 
 export const roomNamesOf = (lessons: Lesson[]): string[] => [
   ...new Set(lessons.map((l) => l.roomName).filter(Boolean)),
 ];
 
- const busySlotsOf = (lessons: Lesson[]): Set<string> =>
+const mergeRoomNames = (base: string[], extra: string[]): string[] => [
+  ...new Set([...base, ...extra]),
+];
+
+const busySlotsOf = (lessons: Lesson[]): Set<string> =>
   new Set(lessons.filter(isLessonBooked).map((l) => l.time));
 
-const busySlotsForClass = (lessons: Lesson[], roomName: string): Set<string> =>
+const busySlotsForRoom = (lessons: Lesson[], roomName: string): Set<string> =>
   new Set(
     lessons
       .filter((l) => isLessonBooked(l) && l.roomName === roomName)
@@ -36,10 +40,11 @@ const busySlotsForClass = (lessons: Lesson[], roomName: string): Set<string> =>
 const makeAvailabilityByRoom = (
   slots: string[],
   lessons: Lesson[],
+  roomNames: string[],
 ): Record<string, Availability> =>
   Object.fromEntries(
-    roomNamesOf(lessons).map((roomName) => {
-      const busy = busySlotsForClass(lessons, roomName);
+    roomNames.map((roomName) => {
+      const busy = busySlotsForRoom(lessons, roomName);
       return [
         roomName,
         {
@@ -56,17 +61,19 @@ export const buildDaySchedule = (
   date: string,
   lessons: Lesson[],
   slots: string[],
+  allRoomNames: string[] = [],
 ): DaySchedule => {
   const booked = lessons.filter(isLessonBooked);
+  const roomNames = mergeRoomNames(allRoomNames, roomNamesOf(lessons));
 
   return {
     date,
     totals: {
       lessons: booked.length,
       busySlots: busySlotsOf(lessons).size,
-      rooms: roomNamesOf(lessons).length,
+      rooms: roomNames.length,
     },
     lessons: booked,
-    availabilityByRoom: makeAvailabilityByRoom(slots, lessons),
+    availabilityByRoom: makeAvailabilityByRoom(slots, lessons, roomNames),
   };
 };
