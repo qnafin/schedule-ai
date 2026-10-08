@@ -99,3 +99,21 @@
 ```
 3) npm run bot
 
+
+# Тестирование factmcp
+
+```
+## список тулов
+fastmcp list http://localhost:8080/mcp
+
+## вызов без аргументов
+fastmcp call http://localhost:8080/mcp list_students
+
+## с аргументами
+fastmcp call http://localhost:8080/mcp get_schedule \
+  --input-json '{"dates":["2026-09-01","2026-09-02"]}'
+
+## find_student
+fastmcp call http://localhost:8080/mcp find_student \
+  --input-json '{"name":"Кунафин Руслан"}'
+```

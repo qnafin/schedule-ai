@@ -11,37 +11,37 @@ export type DaySchedule = {
   totals: {
     lessons: number;
     busySlots: number;
-    classes: number;
+    rooms: number;
   };
   lessons: Lesson[];
-  availabilityByClass: Record<string, Availability>;
+  availabilityByRoom: Record<string, Availability>;
 };
 
 // ---------- Helpers (экспорт для тестов) ----------
 
-export const classNamesOf = (lessons: Lesson[]): string[] => [
-  ...new Set(lessons.map((l) => l.className).filter(Boolean)),
+export const roomNamesOf = (lessons: Lesson[]): string[] => [
+  ...new Set(lessons.map((l) => l.roomName).filter(Boolean)),
 ];
 
  const busySlotsOf = (lessons: Lesson[]): Set<string> =>
   new Set(lessons.filter(isLessonBooked).map((l) => l.time));
 
-const busySlotsForClass = (lessons: Lesson[], className: string): Set<string> =>
+const busySlotsForClass = (lessons: Lesson[], roomName: string): Set<string> =>
   new Set(
     lessons
-      .filter((l) => isLessonBooked(l) && l.className === className)
+      .filter((l) => isLessonBooked(l) && l.roomName === roomName)
       .map((l) => l.time),
   );
 
-const makeAvailabilityByClass = (
+const makeAvailabilityByRoom = (
   slots: string[],
   lessons: Lesson[],
 ): Record<string, Availability> =>
   Object.fromEntries(
-    classNamesOf(lessons).map((className) => {
-      const busy = busySlotsForClass(lessons, className);
+    roomNamesOf(lessons).map((roomName) => {
+      const busy = busySlotsForClass(lessons, roomName);
       return [
-        className,
+        roomName,
         {
           busy: slots.filter((t) => busy.has(t)),
           free: slots.filter((t) => !busy.has(t)),
@@ -64,9 +64,9 @@ export const buildDaySchedule = (
     totals: {
       lessons: booked.length,
       busySlots: busySlotsOf(lessons).size,
-      classes: classNamesOf(lessons).length,
+      rooms: roomNamesOf(lessons).length,
     },
     lessons: booked,
-    availabilityByClass: makeAvailabilityByClass(slots, lessons),
+    availabilityByRoom: makeAvailabilityByRoom(slots, lessons),
   };
 };

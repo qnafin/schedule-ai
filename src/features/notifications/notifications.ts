@@ -38,7 +38,7 @@ const names = (raw: unknown): string[] =>
 
 const renderLesson = (l: Lesson, role: NotificationRole): string => {
   const base = `— ${l.time} — ${l.type || 'занятие'}`;
-  const cls = l.className ? ` (${l.className})` : '';
+  const cls = l.roomName ? ` (${l.roomName})` : '';
   const others = names(role === 'teacher' ? l.students : l.teachers);
   const tail = others.length ? ` • ${joinWithAnd(others)}` : '';
   return `${base}${cls}${tail}`;
@@ -67,9 +67,9 @@ export const renderChatSummary = (
       return `${title}\nвремя с ${workHours.from} до ${workHours.to} свободно, записывайтесь активнее`;
     }
 
-    const lines = Object.entries(day.availabilityByClass).map(
-      ([className, { free }]) =>
-        `— ${className}: ${free.length ? free.join(', ') : 'нет свободных слотов'}`,
+    const lines = Object.entries(day.availabilityByRoom).map(
+      ([roomName, { free }]) =>
+        `— ${roomName}: ${free.length ? free.join(', ') : 'нет свободных слотов'}`,
     );
     return `${title}\n${lines.join('\n')}`;
   });

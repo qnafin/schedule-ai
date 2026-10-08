@@ -10,7 +10,7 @@ export type { SlotsConfig } from './slots';
 export { buildSlots } from './slots';
 
 export type { DaySchedule, Availability } from './daySchedule';
-export { buildDaySchedule,  classNamesOf } from './daySchedule';
+export { buildDaySchedule,  roomNamesOf } from './daySchedule';
 
 export type {
   ScheduleConfig,

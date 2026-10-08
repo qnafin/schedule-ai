@@ -8,14 +8,13 @@ export const createConfig = (overrides = {}) => ({
   paths: {
     outputDir: "data",
   },
-
   schedule: {
     sheetName: "Расписание",
     columns: {
       id: "ID",
       date: "Дата",
       time: "Время",
-      className: "Класс",
+      roomName: "Класс",
       type: "Тип",
       students: "Ученики",
       teachers: "Преподаватели",
@@ -24,7 +23,13 @@ export const createConfig = (overrides = {}) => ({
     workEndHour: 22,
     slotMinutes: 60,
   },
-
+  rooms: {
+    sheetName: "Классы",
+    columns: {
+      id: "№",
+      name: "Наименование",
+    },
+  },
   users: {
     students: {
       sheetName: "Ученики",
