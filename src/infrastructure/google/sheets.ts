@@ -1,4 +1,3 @@
-// fsrc/infrastructure/google/sheets.ts
 import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
 import type { JWT } from 'google-auth-library';
 

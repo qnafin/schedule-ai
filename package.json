@@ -6,11 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "npx tsx --env-file=.env src/index.ts",
-    "mcp": "npx tsx --env-file=.env fsrc/mcp/server.ts",
-    "mcp:inspect": "npx fastmcp inspect fsrc/mcp/server.ts",
-    "mcp:dev": "npx fastmcp dev fsrc/mcp/server.ts",
-    "daily": "npx tsx --env-file=.env fsrc/cli/daily.ts --dates 2026-09-01,2026-09-02",
-    "bot": "npx tsx --env-file=.env fsrc/bot/index.ts"
+    "mcp": "npx tsx --env-file=.env src/mcp/server.ts",
+    "mcp:inspect": "npx fastmcp inspect src/mcp/server.ts",
+    "mcp:dev": "npx fastmcp dev src/mcp/server.ts",
+    "daily": "npx tsx --env-file=.env src/cli/daily.ts --dates 2026-09-01,2026-09-02",
+    "bot": "npx tsx --env-file=.env src/bot/index.ts"
   },
   "keywords": [],
   "author": "",
