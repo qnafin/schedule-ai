@@ -23,3 +23,10 @@ export const getSheetByName = (
 
 export const fetchAllRows = (sheet: GoogleSpreadsheetWorksheet) =>
   sheet.getRows();
+
+export const appendRow = async (
+  sheet: GoogleSpreadsheetWorksheet,
+  values: Record<string, string | number>,
+): Promise<void> => {
+  await sheet.addRow(values);
+};

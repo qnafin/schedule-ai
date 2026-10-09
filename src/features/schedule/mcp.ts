@@ -1,9 +1,10 @@
-import { z } from 'zod';
-import type { FastMCP } from 'fastmcp';
-import type { JWT } from 'google-auth-library';
+import { z } from "zod";
+import type { FastMCP } from "fastmcp";
+import type { JWT } from "google-auth-library";
 
-import { getSchedule, listScheduleDates } from './services/getSchedule';
-import type { ScheduleConfig } from './services/getSchedule';
+import { getSchedule, listScheduleDates } from "./services/getSchedule";
+import { appendLesson } from "./services/appendLesson";
+import type { ScheduleConfig } from "./services/getSchedule";
 
 type Deps = {
   config: ScheduleConfig;
@@ -14,11 +15,11 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export const registerScheduleTools = (
   server: FastMCP,
-  { config, authClient }: Deps,
+  { config, authClient }: Deps
 ) => {
   server.addTool({
-    name: 'list_schedule_dates',
-    description: 'Список доступных дат в расписании (ISO YYYY-MM-DD).',
+    name: "list_schedule_dates",
+    description: "Список доступных дат в расписании (ISO YYYY-MM-DD).",
     parameters: z.object({}),
     execute: async () => {
       const dates = await listScheduleDates(config, authClient);
@@ -27,21 +28,59 @@ export const registerScheduleTools = (
   });
 
   server.addTool({
-    name: 'get_schedule',
+    name: "get_schedule",
     description:
-      'Расписание на указанные даты. Если даты не переданы — вернёт все доступные дни. ' +
-      'Даты в формате ISO YYYY-MM-DD. ' +
-      'Для каждого дня возвращает уроки и доступность по классам (помещениям) — ' +
-      'даже если уроков в этот день нет, все классы из справочника будут в ответе со всеми свободными слотами.',
+      "Расписание на указанные даты. Если даты не переданы — вернёт все доступные дни. " +
+      "Даты в формате ISO YYYY-MM-DD. " +
+      "Для каждого дня возвращает уроки и доступность по классам (помещениям) — " +
+      "даже если уроков в этот день нет, все классы из справочника будут в ответе со всеми свободными слотами.",
     parameters: z.object({
       dates: z
-        .array(z.string().regex(ISO_DATE, 'Ожидается YYYY-MM-DD'))
+        .array(z.string().regex(ISO_DATE, "Ожидается YYYY-MM-DD"))
         .optional()
-        .describe('Список дат в формате YYYY-MM-DD. Необязательно.'),
+        .describe("Список дат в формате YYYY-MM-DD. Необязательно."),
     }),
     execute: async ({ dates }) => {
       const days = await getSchedule(config, authClient, { dates });
       return JSON.stringify(days, null, 2);
+    },
+  });
+  server.addTool({
+    name: "append_lesson",
+    description:
+      'Создаёт новую запись в листе "Расписание". НЕ проверяет конфликты — ' +
+      "агент обязан сам сначала вызвать get_schedule и убедиться, что класс свободен, " +
+      "а ученики и преподаватели не заняты в это время. " +
+      "ID генерируется автоматически. Даты в формате DD.MM.YYYY, время HH:MM.",
+    parameters: z.object({
+      date: z
+        .string()
+        .regex(/^\d{2}\.\d{2}\.\d{4}$/)
+        .describe("Дата в формате DD.MM.YYYY"),
+      time: z
+        .string()
+        .regex(/^\d{2}:\d{2}$/)
+        .describe("Время начала в формате HH:MM"),
+      roomName: z.string().describe("Класс"),
+      type: z
+        .string()
+        .describe('Тип занятия, например "репетиция" или "урок 1.2"'),
+      students: z.array(z.string()).describe("ФИО учеников"),
+      teachers: z
+        .array(z.string())
+        .default([])
+        .describe("ФИО преподавателей (может быть пустой массив)"),
+    }),
+    execute: async (params) => {
+      const result = await appendLesson(config, authClient, {
+        date: params.date,
+        time: params.time,
+        roomName: params.roomName,
+        type: params.type,
+        students: params.students,
+        teachers: params.teachers ?? [],
+      });
+      return JSON.stringify(result, null, 2);
     },
   });
 };
