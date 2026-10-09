@@ -1,9 +1,11 @@
 import type { MessageContext } from 'vk-io';
-import type { Assistant } from '../assistant/assistant';
+import type { Assistant, SenderContext } from '../assistant/assistant';
+import type { BotDeps } from './deps';
 import { createDebouncer } from './debouncer';
 
 export interface RouterDeps {
   assistant: Assistant;
+  deps: BotDeps;
   quietMs?: number;
   maxWaitMs?: number;
 }
@@ -11,19 +13,23 @@ export interface RouterDeps {
 const sessionKey = (ctx: MessageContext): string =>
   `${ctx.peerId}:${ctx.senderId}`;
 
-export const createRouter = ({ assistant, quietMs, maxWaitMs }: RouterDeps) => {
-  const debouncer = createDebouncer({
+export const createRouter = ({
+  assistant,
+  deps,
+  quietMs,
+  maxWaitMs,
+}: RouterDeps) => {
+  const senders = new Map<string, (text: string) => Promise<void>>();
+
+  const debouncer = createDebouncer<SenderContext>({
     quietMs,
     maxWaitMs,
-    onFlush: async (sessionId, texts) => {
+    onFlush: async (sessionId, texts, context) => {
       const input = texts.join('\n');
-      const answer = await assistant.ask(input, sessionId);
+      const answer = await assistant.ask(input, sessionId, context);
       await send(sessionId, answer);
     },
   });
-
-  // Реестр «как ответить в эту сессию» — чтобы debouncer не знал про vk-io
-  const senders = new Map<string, (text: string) => Promise<void>>();
 
   const handle = async (ctx: MessageContext): Promise<void> => {
     const text = (ctx.text ?? '').trim();
@@ -31,17 +37,27 @@ export const createRouter = ({ assistant, quietMs, maxWaitMs }: RouterDeps) => {
 
     const key = sessionKey(ctx);
 
-    // Команды-исключения обрабатываем сразу, без буферизации
     if (text === '/reset') {
-      await debouncer.flushNow(key);   // на всякий случай сбросим буфер
+      await debouncer.flushNow(key);
       assistant.resetSession(key);
       await ctx.send('Контекст сброшен.');
       return;
     }
-   
-    senders.set(key, (msg) => ctx.send(msg));
-    debouncer.push(key, text);
 
+    let user: Sender | null = null;
+    try {
+      user = await deps.resolveSender(ctx.senderId);
+    } catch (e) {
+      console.error('[router] resolveSender failed:', e);
+    }
+
+    const context: SenderContext = {
+      vkId: ctx.senderId,
+      user,
+    };
+
+    senders.set(key, (msg) => ctx.send(msg));
+    debouncer.push(key, text, context);
   };
 
   const send = async (sessionId: string, text: string): Promise<void> => {

@@ -1,5 +1,4 @@
 import type OpenAI from 'openai';
-import type { Sender } from '../features/users/services/resolveByVkId';
 import { renderContextLine, type SenderContext } from './context';
 
 export type { SenderContext };
@@ -12,7 +11,7 @@ export interface AssistantOptions {
 }
 
 export class Assistant {
-  private readonly sessions = new Map<string, string>();
+  private readonly previousResponseIds = new Map<string, string>();
 
   constructor(private readonly opts: AssistantOptions) {}
 
@@ -28,20 +27,20 @@ export class Assistant {
       model: this.opts.model,
       store: true,
       reasoning: { effort: 'low' },
-      previous_response_id: this.sessions.get(sessionId),
+      previous_response_id: this.previousResponseIds.get(sessionId),
       instructions: this.opts.instructions,
       input,
       tools: this.opts.tools,
       tool_choice: 'auto',
     });
 
-    this.sessions.set(sessionId, response.id);
+    this.previousResponseIds.set(sessionId, response.id);
     this.logMcpCalls(response);
     return this.extractText(response);
   }
 
   resetSession(sessionId: string): void {
-    this.sessions.delete(sessionId);
+    this.previousResponseIds.delete(sessionId);
   }
 
   private logMcpCalls(response: OpenAI.Responses.Response): void {

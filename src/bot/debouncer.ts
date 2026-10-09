@@ -40,7 +40,7 @@ export const createDebouncer = <TContext>({
     const existing = buffers.get(sessionId);
     if (existing) {
       existing.texts.push(text);
-      existing.context = context; // обновляем — берём самый свежий
+      existing.context = context; // последний контекст перекрывает предыдущий
     } else {
       buffers.set(sessionId, { texts: [text], context });
     }

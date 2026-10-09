@@ -1,15 +1,28 @@
 import { VK } from 'vk-io';
+
 import { buildClient } from '../assistant/client.js';
 import { Assistant } from '../assistant/assistant.js';
 import { buildMcpTools, buildModelUri, INSTRUCTIONS } from '../assistant/config.js';
+import { createConfig } from '../config.js';
+import { createGoogleAuth } from '../infrastructure/google/auth';
+import { createBotDeps } from './deps.js';
 import { createRouter } from './router.js';
+
+const { client_email, private_key } = JSON.parse(
+  process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}"
+);
 
 const main = async (): Promise<void> => {
   const token = process.env.VK_ACCESS_TOKEN;
   if (!token) throw new Error('VK_ACCESS_TOKEN не задан');
 
-  const { client, folderId } = buildClient();
+  const config = createConfig();
+  const authClient = createGoogleAuth({
+    googleServiceAccountEmail: client_email,
+    googlePrivateKey: private_key,
+  });
 
+  const { client, folderId } = buildClient();
   const assistant = new Assistant({
     client,
     model: buildModelUri(folderId),
@@ -17,13 +30,13 @@ const main = async (): Promise<void> => {
     tools: buildMcpTools(),
   });
 
+  const deps = createBotDeps(config, authClient);
+
   const vk = new VK({ token, apiVersion: '5.199' });
-  const router = createRouter({ assistant });
+  const router = createRouter({ assistant, deps });
 
   vk.updates.on('message_new', async (context) => {
     if (context.isOutbox) return;
-
-    // В беседах реагируем только на команды, начинающиеся со слэша
     if (context.isChat && !context.text?.startsWith('/')) return;
 
     try {
@@ -35,7 +48,7 @@ const main = async (): Promise<void> => {
   });
 
   await vk.updates.startPolling();
-  console.log('🤖 Бот слушает сообщения. MCP:', buildMcpTools().map((t) => t.server_label).join(', '));
+  console.log('🤖 Бот слушает. MCP:', buildMcpTools().map((t) => t.server_label).join(', '));
 };
 
 main().catch((e) => {
