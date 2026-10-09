@@ -1,18 +1,15 @@
-export interface DebouncerOptions {
-  /** Пауза после последнего сообщения, мс */
+export interface DebouncerOptions<TContext> {
   quietMs?: number;
-  /** Максимум ожидания с первого сообщения, мс (защита от «флудера») */
   maxWaitMs?: number;
-  /** Что делать с накопленными сообщениями */
-  onFlush: (sessionId: string, texts: string[]) => Promise<void>;
+  onFlush: (sessionId: string, texts: string[], context: TContext) => Promise<void>;
 }
 
-export const createDebouncer = ({
-  quietMs = 500,
+export const createDebouncer = <TContext>({
+  quietMs = 3000,
   maxWaitMs = 15000,
   onFlush,
-}: DebouncerOptions) => {
-  const buffers = new Map<string, string[]>();
+}: DebouncerOptions<TContext>) => {
+  const buffers = new Map<string, { texts: string[]; context: TContext }>();
   const quietTimers = new Map<string, NodeJS.Timeout>();
   const maxTimers = new Map<string, NodeJS.Timeout>();
 
@@ -26,38 +23,34 @@ export const createDebouncer = ({
   };
 
   const flush = async (sessionId: string): Promise<void> => {
-    const texts = buffers.get(sessionId);
-    if (!texts?.length) return;
+    const buf = buffers.get(sessionId);
+    if (!buf?.texts.length) return;
 
     buffers.delete(sessionId);
     clearTimers(sessionId);
 
     try {
-      await onFlush(sessionId, texts);
+      await onFlush(sessionId, buf.texts, buf.context);
     } catch (e) {
       console.error(`[debouncer] flush failed for ${sessionId}:`, e);
     }
   };
 
-  const push = (sessionId: string, text: string): void => {
-    const buffer = buffers.get(sessionId) ?? [];
-    buffer.push(text);
-    buffers.set(sessionId, buffer);
+  const push = (sessionId: string, text: string, context: TContext): void => {
+    const existing = buffers.get(sessionId);
+    if (existing) {
+      existing.texts.push(text);
+      existing.context = context; // обновляем — берём самый свежий
+    } else {
+      buffers.set(sessionId, { texts: [text], context });
+    }
 
-    // Сбрасываем «тихий» таймер — ждём паузу после последнего сообщения
     const q = quietTimers.get(sessionId);
     if (q) clearTimeout(q);
-    quietTimers.set(
-      sessionId,
-      setTimeout(() => void flush(sessionId), quietMs)
-    );
+    quietTimers.set(sessionId, setTimeout(() => void flush(sessionId), quietMs));
 
-    // Первый раз — ставим «жёсткий» таймер, чтобы болтун не копил вечно
     if (!maxTimers.has(sessionId)) {
-      maxTimers.set(
-        sessionId,
-        setTimeout(() => void flush(sessionId), maxWaitMs)
-      );
+      maxTimers.set(sessionId, setTimeout(() => void flush(sessionId), maxWaitMs));
     }
   };
 

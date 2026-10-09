@@ -1,31 +1,41 @@
 import type OpenAI from 'openai';
+import type { Sender } from '../features/users/services/resolveByVkId';
+import { renderContextLine, type SenderContext } from './context';
+
+export type { SenderContext };
 
 export interface AssistantOptions {
   client: OpenAI;
   model: string;
   instructions: string;
-  tools: any[]; // MCP-конфиги, форма фиксирована Yandex Cloud
+  tools: any[];
 }
 
 export class Assistant {
-  private readonly sessions = new Map<string, string>(); // sessionId → previous_response_id
+  private readonly sessions = new Map<string, string>();
 
   constructor(private readonly opts: AssistantOptions) {}
 
-  async ask(userInput: string, sessionId = 'default'): Promise<string> {
+  async ask(
+    userInput: string,
+    sessionId = 'default',
+    context?: SenderContext,
+  ): Promise<string> {
+    const contextLine = renderContextLine(context);
+    const input = contextLine ? `${contextLine}\n${userInput}` : userInput;
+
     const response = await this.opts.client.responses.create({
       model: this.opts.model,
       store: true,
       reasoning: { effort: 'low' },
       previous_response_id: this.sessions.get(sessionId),
       instructions: this.opts.instructions,
-      input: userInput,
+      input,
       tools: this.opts.tools,
       tool_choice: 'auto',
     });
 
     this.sessions.set(sessionId, response.id);
-
     this.logMcpCalls(response);
     return this.extractText(response);
   }
