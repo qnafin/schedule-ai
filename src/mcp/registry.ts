@@ -4,10 +4,10 @@ import { createConfig } from "../config";
 import { createGoogleAuth } from "../infrastructure/google/auth";
 import { createVkClient } from "../infrastructure/vk";
 
-import { registerUserTools } from "../features/users/mcp";
-import { registerScheduleTools } from "../features/schedule/mcp";
-import { registerNotificationTools } from "../features/notifications/mcp";
-import { registerRoomsTools } from '../features/rooms/mcp'
+import { registerUserTools } from "../features/users/tool";
+import { registerScheduleTools } from "../features/schedule/tool";
+import { registerNotificationTools } from "../features/notifications/tool";
+import { registerRoomsTools } from '../features/rooms/tool'
 
 const { client_email, private_key } = JSON.parse(
   process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}"

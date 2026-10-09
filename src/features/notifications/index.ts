@@ -37,4 +37,4 @@ export { sendAdminReport, renderReport } from './services/sendAdminReport';
 export type { RunDailyOptions, RunDailyResult } from './services/runDaily';
 export { runDaily } from './services/runDaily';
 
-export { registerNotificationTools } from './mcp';
+export { registerNotificationTools } from './tool';

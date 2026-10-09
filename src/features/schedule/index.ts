@@ -21,4 +21,4 @@ export {
   listScheduleDates,
 } from './services/getSchedule';
 
-export { registerScheduleTools } from './mcp';
+export { registerScheduleTools } from './tool';

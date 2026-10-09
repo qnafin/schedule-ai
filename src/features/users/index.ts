@@ -25,4 +25,4 @@ export { getUsers, invalidateUsersCache } from './services/getUsers';
 export type { FoundUser } from './services/findUser';
 export { findStudent,findTeacher, invalidateUsersIndex } from './services/findUser';
 
-export { registerUserTools } from './mcp';
+export { registerUserTools } from './tool';
