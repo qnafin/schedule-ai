@@ -24,6 +24,8 @@ export type ValidationInput = {
   rooms: { id: string; name: string }[];
   students: RosterEntry[];
   teachers: RosterEntry[];
+  /** При редактировании — ID урока, который исключаем из проверок конфликтов. */
+  excludeLessonId?: string;
 };
 
 // ---------- Результат ----------
@@ -33,6 +35,7 @@ export type ValidationIssue = {
     | 'outside_working_hours'
     | 'unknown_date'
     | 'unknown_room'
+    | 'unknown_id'
     | 'room_busy'
     | 'unknown_person'
     | 'person_busy';
@@ -71,10 +74,12 @@ const findPersonLesson = (
   role: 'student' | 'teacher',
   aliases: string[],
   time: string,
+  excludeLessonId?: string,
 ): Lesson | undefined => {
   const field = role === 'student' ? 'students' : 'teachers';
   return day.lessons.find(
     (l) =>
+      l.id !== excludeLessonId &&
       l.time === time &&
       splitNames(l[field]).some((n) => namesMatch(n, name, aliases)),
   );
@@ -95,6 +100,7 @@ const checkRoom = (
   day: DaySchedule,
   time: string,
   rooms: { id: string; name: string }[],
+  excludeLessonId?: string,
 ): ValidationIssue | null => {
   const exists = rooms.some((r) => r.name === roomName);
   if (!exists) {
@@ -106,14 +112,19 @@ const checkRoom = (
 
   const availability = day.availabilityByRoom[roomName];
   if (availability?.busy.includes(time)) {
-    const withLesson = day.lessons.find(
-      (l) => l.roomName === roomName && l.time === time,
+    const conflicting = day.lessons.find(
+      (l) =>
+        l.roomName === roomName &&
+        l.time === time &&
+        l.id !== excludeLessonId,
     );
-    return {
-      code: 'room_busy',
-      message: `Класс "${roomName}" занят в ${time}`,
-      withLesson,
-    };
+    if (conflicting) {
+      return {
+        code: 'room_busy',
+        message: `Класс "${roomName}" занят в ${time}`,
+        withLesson: conflicting,
+      };
+    }
   }
   return null;
 };
@@ -124,6 +135,7 @@ const checkPeople = (
   day: DaySchedule,
   time: string,
   roster: RosterEntry[],
+  excludeLessonId?: string,
 ): ValidationIssue[] => {
   const label = role === 'student' ? 'Ученик' : 'Преподаватель';
   const issues: ValidationIssue[] = [];
@@ -139,7 +151,14 @@ const checkPeople = (
       continue;
     }
 
-    const conflict = findPersonLesson(day, entry.fullName, role, entry.aliases, time);
+    const conflict = findPersonLesson(
+      day,
+      entry.fullName,
+      role,
+      entry.aliases,
+      time,
+      excludeLessonId,
+    );
     if (conflict) {
       issues.push({
         code: 'person_busy',
@@ -161,6 +180,7 @@ export const validateNewLesson = ({
   rooms,
   students,
   teachers,
+  excludeLessonId,
 }: ValidationInput): ValidationResult => {
   if (!day) {
     return {
@@ -179,11 +199,15 @@ export const validateNewLesson = ({
   const t = checkTime(candidate.time, slots);
   if (t) issues.push(t);
 
-  const r = checkRoom(candidate.roomName, day, candidate.time, rooms);
+  const r = checkRoom(candidate.roomName, day, candidate.time, rooms, excludeLessonId);
   if (r) issues.push(r);
 
-  issues.push(...checkPeople(candidate.students, 'student', day, candidate.time, students));
-  issues.push(...checkPeople(candidate.teachers, 'teacher', day, candidate.time, teachers));
+  issues.push(
+    ...checkPeople(candidate.students, 'student', day, candidate.time, students, excludeLessonId),
+  );
+  issues.push(
+    ...checkPeople(candidate.teachers, 'teacher', day, candidate.time, teachers, excludeLessonId),
+  );
 
   return issues.length ? { ok: false, issues } : { ok: true };
 };
