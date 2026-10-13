@@ -25,7 +25,7 @@ const main = async (): Promise<void> => {
   const { client, folderId } = buildClient();
   const assistant = new Assistant({
     client,
-    model: buildModelUri(folderId),
+    model: buildModelUri(folderId, process.env.YANDEX_CLOUD_MODEL),
     instructions: INSTRUCTIONS,
     tools: buildMcpTools(),
   });

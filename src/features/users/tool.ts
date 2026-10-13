@@ -59,7 +59,7 @@ export const registerUserTools = (
     parameters: z.object({
       name: z
         .string()
-        .describe('ФИО, например «Кунафин Руслан» или «Руслан Кунафин»'),
+        .describe('ФИО, например «Аиагентов Иван» или «Иван Аиагентов'),
     }),
     execute: async ({ name }) => {
       const student = await findStudent(config, authClient, name);

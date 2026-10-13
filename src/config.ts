@@ -1,6 +1,6 @@
 // src/config.js
 export const createConfig = (overrides = {}) => ({
-  spreadsheetId: "1nZRSxBUWp_4b0WHFofv6iTCkFBEa-D71OWIKm_hl860",
+  spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
   notifications: {
     greeting: "Барабанное утро!",
     chatPeerId: Number(process.env.VK_CHAT_PEER_ID) || null,
