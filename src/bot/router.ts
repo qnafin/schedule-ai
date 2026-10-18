@@ -1,5 +1,5 @@
 import type { MessageContext } from 'vk-io';
-import type { Assistant, SenderContext } from '../assistant/assistant';
+import type { Assistant, SenderContext } from '../assistant/single/assistant';
 import type { BotDeps } from './deps';
 import { createDebouncer } from './debouncer';
 

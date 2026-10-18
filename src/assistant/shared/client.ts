@@ -16,7 +16,6 @@ export const buildClient = (): ClientBundle => {
     baseURL: 'https://ai.api.cloud.yandex.net/v1',
     apiKey,
     defaultHeaders: {
-      // Yandex Cloud требует project в заголовке (аналог `project=` в Python SDK)
       'OpenAI-Project': folderId,
     },
   });

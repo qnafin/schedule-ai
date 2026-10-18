@@ -37,4 +37,7 @@ export { sendAdminReport, renderReport } from './services/sendAdminReport';
 export type { RunDailyOptions, RunDailyResult } from './services/runDaily';
 export { runDaily } from './services/runDaily';
 
+export { sendAdminEscalation } from './services/sendAdminEscalation';
+export type { EscalationInput, EscalationResult } from './services/sendAdminEscalation';
+
 export { registerNotificationTools } from './tool';
