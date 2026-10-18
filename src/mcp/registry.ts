@@ -8,6 +8,7 @@ import { registerUserTools } from "../features/users/tool";
 import { registerScheduleTools } from "../features/schedule/tool";
 import { registerNotificationTools } from "../features/notifications/tool";
 import { registerRoomsTools } from '../features/rooms/tool'
+import { registerKnowledgeTool } from '../features/knowledge/tool';
 
 const { client_email, private_key } = JSON.parse(
   process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}"
@@ -44,6 +45,7 @@ export const buildServer = (): FastMCP => {
     chatPeerId,
     adminUserId,
   });
+  registerKnowledgeTool(server);
 
   return server;
 };

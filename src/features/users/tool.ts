@@ -53,7 +53,7 @@ export const registerUserTools = (
     },
   });
 
-  server.addTool({
+  /*server.addTool({
     name: 'find_student',
     description: 'Найти ученика по ФИО. Регистр и порядок слов не важны.',
     parameters: z.object({
@@ -82,7 +82,7 @@ export const registerUserTools = (
       return JSON.stringify(toContact(teacher), null, 2);
     },
   });
-
+  */
   server.addTool({
     name: 'refresh_users',
     description:
