@@ -1,8 +1,3 @@
-export const MODEL_FLASH = 'deepseek-v4-flash';
-
-export const buildModelUri = (folderId: string, model: string = MODEL_FLASH): string =>
-  `gpt://${folderId}/${model}/latest`;
-
 export const INSTRUCTIONS = `
 Ты — ассистент школы музыки: расписание, запись на урок/репетицию/индивидуальное.
 
@@ -44,33 +39,3 @@ export const INSTRUCTIONS = `
 Данные только из MCP. Не выдумывай. Не видел — так и скажи.
 Не про школу: "Помогаю только с расписанием и записью."
 `.trim();
-
-export interface McpServer {
-  type: 'mcp';
-  server_label: string;
-  server_url: string;
-  require_approval: 'never';
-}
-
-/**
- * MCP-серверы, которые OpenAI будет вызывать сам.
- * URL берём из окружения — так удобно переключать ngrok/local/prod.
- */
-export const buildMcpTools = (env = process.env): McpServer[] => {
-  const tools: McpServer[] = [];
-
-  if (env.MCP_SCHEDULE_URL) {
-    tools.push({
-      type: 'mcp',
-      server_label: 'schedule',
-      server_url: env.MCP_SCHEDULE_URL,
-      require_approval: 'never',
-    });
-  }
-
-  if (!tools.length) {
-    throw new Error('Не задан ни один MCP-сервер (MCP_SCHEDULE_URL)');
-  }
-
-  return tools;
-};

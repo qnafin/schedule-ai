@@ -1,5 +1,5 @@
 import type OpenAI from 'openai';
-import { renderContextLine, type SenderContext } from './context';
+import { renderContextLine, type SenderContext } from '../shared/context';
 
 export type { SenderContext };
 

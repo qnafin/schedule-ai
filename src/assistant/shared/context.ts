@@ -1,4 +1,4 @@
-import type { Sender } from '../features/users/services/resolveByVkId';
+import type { Sender } from '../../features/users/services/resolveByVkId';
 
 export interface SenderContext {
   vkId: number;

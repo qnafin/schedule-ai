@@ -11,6 +11,7 @@
     "mcp:dev": "npx fastmcp dev src/mcp/server.ts",
     "daily": "npx tsx --env-file=.env src/cli/daily.ts --dates 2026-09-01,2026-09-02",
     "bot": "npx tsx --env-file=.env src/bot/index.ts",
+    "bot:multi": "npx tsx --env-file=.env src/bot/multi.ts",
     "rag:index": "npx tsx --env-file=.env src/rag/index-rag.ts"
   },
   "keywords": [],

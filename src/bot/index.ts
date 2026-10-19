@@ -1,12 +1,13 @@
 import { VK } from 'vk-io';
 
-import { buildClient } from '../assistant/client.js';
-import { Assistant } from '../assistant/assistant.js';
-import { buildMcpTools, buildModelUri, INSTRUCTIONS } from '../assistant/config.js';
-import { createConfig } from '../config.js';
+import { buildClient } from '../assistant/shared/client';
+import { Assistant } from '../assistant/single/assistant';
+import { INSTRUCTIONS } from '../assistant/single/config';
+import { buildMcpTools, buildModelUri} from '../assistant/shared'
+import { createConfig } from '../config';
 import { createGoogleAuth } from '../infrastructure/google/auth';
-import { createBotDeps } from './deps.js';
-import { createRouter } from './router.js';
+import { createBotDeps } from './deps';
+import { createRouter } from './router';
 
 const { client_email, private_key } = JSON.parse(
   process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}"
