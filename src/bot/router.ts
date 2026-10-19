@@ -1,10 +1,20 @@
 import type { MessageContext } from 'vk-io';
-import type { Assistant, SenderContext } from '../assistant/single/assistant';
+import type { SenderContext } from '../assistant/shared/context';
+import type { Sender } from '../features/users/services/resolveByVkId';
 import type { BotDeps } from './deps';
 import { createDebouncer } from './debouncer';
 
+export interface AssistantLike {
+  ask(
+    input: string,
+    sessionId?: string,
+    context?: SenderContext,
+  ): Promise<string>;
+  resetSession(sessionId: string): void;
+}
+
 export interface RouterDeps {
-  assistant: Assistant;
+  assistant: AssistantLike;
   deps: BotDeps;
   quietMs?: number;
   maxWaitMs?: number;

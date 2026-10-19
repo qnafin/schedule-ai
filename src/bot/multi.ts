@@ -2,8 +2,9 @@ import { VK } from 'vk-io';
 
 import {
   buildClient,
-  buildModelUri,
   buildMcpTools,
+  MODEL_FLASH,
+  MODEL_ROUTER,
 } from '../assistant/shared';
 import { MultiAgentAssistant } from '../assistant/multi';
 import { createConfig } from '../config';
@@ -21,8 +22,7 @@ const main = async (): Promise<void> => {
   const token = process.env.VK_ACCESS_TOKEN;
   if (!token) throw new Error('VK_ACCESS_TOKEN не задан');
 
-  const adminUserId = Number(process.env.VK_ADMIN_USER_ID);
-  if (!adminUserId) throw new Error('VK_ADMIN_USER_ID не задан');
+  const adminUserId = Number(process.env.VK_ADMIN_USER_ID) || null;
 
   const config = createConfig();
   const authClient = createGoogleAuth({
@@ -32,12 +32,13 @@ const main = async (): Promise<void> => {
 
   const { client, folderId } = buildClient();
 
-  // Отдельный VkClient для исходящих (эскалация, уведомления)
   const vkClient = createVkClient({ token });
 
   const assistant = new MultiAgentAssistant({
     client,
-    model: buildModelUri(folderId, process.env.YANDEX_CLOUD_MODEL),
+    folderId, 
+    model: process.env.YANDEX_CLOUD_MODEL ?? MODEL_FLASH,  
+    routerModel: MODEL_ROUTER, 
     mcpTools: buildMcpTools(),
 
     onRoute: (role, input) => {
@@ -45,6 +46,11 @@ const main = async (): Promise<void> => {
     },
 
     onEscalate: async ({ userInput, botResponse, sessionId, sender }) => {
+      if (!adminUserId) {
+        console.warn('[escalation] VK_ADMIN_USER_ID не задан — пропускаем');
+        return;
+      }
+
       const result = await sendAdminEscalation(vkClient, {
         adminUserId,
         userInput,
@@ -79,7 +85,10 @@ const main = async (): Promise<void> => {
   });
 
   await vk.updates.startPolling();
-  console.log('🤖 Бот слушает (multi). MCP:', buildMcpTools().map((t) => t.server_label).join(', '));
+  console.log(
+    '🤖 Бот слушает (multi). MCP:',
+    buildMcpTools().map((t) => t.server_label).join(', '),
+  );
 };
 
 main().catch((e) => {
