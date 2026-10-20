@@ -8,3 +8,5 @@ export { MODEL_FLASH, MODEL_ROUTER, buildModelUri } from './model';
 
 export { buildMcpTools } from './mcp';
 export type { McpServer } from './mcp';
+
+export { extractText, findMcpCall, logMcpCalls } from './responses';

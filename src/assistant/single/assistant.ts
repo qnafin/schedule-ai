@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import { renderContextLine, type SenderContext } from '../shared/context';
+import { extractText, logMcpCalls } from '../shared/responses';
 
 export type { SenderContext };
 
@@ -35,30 +36,11 @@ export class Assistant {
     });
 
     this.previousResponseIds.set(sessionId, response.id);
-    this.logMcpCalls(response);
-    return this.extractText(response);
+    logMcpCalls(response);
+    return extractText(response);
   }
 
   resetSession(sessionId: string): void {
     this.previousResponseIds.delete(sessionId);
-  }
-
-  private logMcpCalls(response: OpenAI.Responses.Response): void {
-    for (const item of response.output ?? []) {
-      if (item.type !== 'mcp_call') continue;
-      const err = 'error' in item ? item.error : undefined;
-      console.log(`[MCP] ${item.server_label}/${item.name}${err ? ` — ${err}` : ''}`);
-    }
-  }
-
-  private extractText(response: OpenAI.Responses.Response): string {
-    const parts: string[] = [];
-    for (const item of response.output ?? []) {
-      if (item.type !== 'message') continue;
-      for (const chunk of item.content ?? []) {
-        if (chunk.type === 'output_text') parts.push(chunk.text);
-      }
-    }
-    return parts.join('\n').trim() || response.output_text || '';
   }
 }
