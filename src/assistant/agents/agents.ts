@@ -10,7 +10,14 @@ import {
 import type { Session } from '@openai/agents';
 import OpenAI from 'openai';
 import { renderContextLine, type SenderContext } from '../shared/context';
-import {SMALLTALK_PROMPT, SCHEDULE_PROMPT, SUPPORT_PROMPT, KNOWLEDGE_PROMPT, SALES_PROMPT, TRIAGE_PROMPT} from './config'
+import {
+  SMALLTALK_PROMPT,
+  SCHEDULE_PROMPT,
+  SUPPORT_PROMPT,
+  KNOWLEDGE_PROMPT,
+  SALES_PROMPT,
+  TRIAGE_PROMPT,
+} from './config';
 
 export interface EscalationContext {
   userInput: string;
@@ -23,21 +30,25 @@ export interface AgentsAssistantOptions {
   apiKey: string;
   folderId: string;
   mcpUrl: string;
-  /** Колбэк эскалации — вызывается, если финальный агент SupportAgent. */
   onEscalate?: (ctx: EscalationContext) => Promise<void>;
-  /** Лог роутинга — какой агент ответил. */
   onRoute?: (agent: string, input: string) => void;
 }
 
+const MAX_TURNS = 30;
 
 export class AgentsAssistant {
-  /** Сессии per-user. Session хранит историю между запросами. */
   private readonly sessions = new Map<string, Session>();
 
+  private readonly lastAgents = new Map<string, Agent>();
+
   private readonly triage: Agent;
+  private readonly schedule: Agent;
+  private readonly knowledge: Agent;
+  private readonly sales: Agent;
+  private readonly support: Agent;
+  private readonly smalltalk: Agent;
 
   constructor(private readonly opts: AgentsAssistantOptions) {
-    
     setTracingDisabled(true);
     setDefaultOpenAIClient(
       new OpenAI({
@@ -58,27 +69,26 @@ export class AgentsAssistant {
         allowedTools,
       });
 
-    const schedule = new Agent({
+    this.schedule = new Agent({
       name: 'ScheduleAgent',
       model: model('deepseek-v4-flash'),
       instructions: SCHEDULE_PROMPT,
       tools: [
         mcp([
           'get_schedule',
-          'list_schedule_dates',
           'append_lesson',
           'update_lesson',
           'delete_lesson',
           'list_students',
           'list_teachers',
           'list_rooms',
-          'search_knowledge'
+          'search_knowledge',
         ]),
       ],
       modelSettings: { temperature: 0.3, reasoning: { effort: 'low' } },
     });
 
-    const knowledge = new Agent({
+    this.knowledge = new Agent({
       name: 'KnowledgeAgent',
       model: model('deepseek-v4-flash'),
       instructions: KNOWLEDGE_PROMPT,
@@ -86,7 +96,7 @@ export class AgentsAssistant {
       modelSettings: { temperature: 0.3, reasoning: { effort: 'low' } },
     });
 
-    const sales = new Agent({
+    this.sales = new Agent({
       name: 'SalesAgent',
       model: model('deepseek-v4-flash'),
       instructions: SALES_PROMPT,
@@ -101,14 +111,14 @@ export class AgentsAssistant {
       modelSettings: { temperature: 0.5, reasoning: { effort: 'low' } },
     });
 
-    const support = new Agent({
+    this.support = new Agent({
       name: 'SupportAgent',
       model: model('yandexgpt-lite'),
       instructions: SUPPORT_PROMPT,
       modelSettings: { temperature: 0.3, reasoning: { effort: 'low' } },
     });
 
-    const smalltalk = new Agent({
+    this.smalltalk = new Agent({
       name: 'SmalltalkAgent',
       model: model('yandexgpt-lite'),
       instructions: SMALLTALK_PROMPT,
@@ -116,17 +126,23 @@ export class AgentsAssistant {
     });
 
     // Peer-to-peer handoffs
-    schedule.handoffs = [knowledge, sales, support];
-    knowledge.handoffs = [schedule, sales, support];
-    sales.handoffs = [schedule, knowledge, support];
+    this.schedule.handoffs = [this.knowledge, this.sales, this.support];
+    this.knowledge.handoffs = [this.schedule, this.sales, this.support];
+    this.sales.handoffs = [this.schedule, this.knowledge, this.support];
     // support и smalltalk — финальные, без исходящих handoff
 
-    // 5. Triage — стартовый агент, handoffs ко всем
+    // Triage — стартовый агент, handoffs ко всем
     this.triage = new Agent({
       name: 'TriageAgent',
-      model: model('yandexgpt-lite'),
+      model: model('deepseek-v4-flash'),
       instructions: TRIAGE_PROMPT,
-      handoffs: [schedule, knowledge, sales, support, smalltalk],
+      handoffs: [
+        this.schedule,
+        this.knowledge,
+        this.sales,
+        this.support,
+        this.smalltalk,
+      ],
       modelSettings: { temperature: 0, reasoning: { effort: 'low' } },
     });
   }
@@ -138,26 +154,33 @@ export class AgentsAssistant {
     context?: SenderContext,
   ): Promise<string> {
     const session = this.getSession(sessionId);
-
-    // [Сейчас: ...] + [Кто пишет: ...]
     const contextLine = renderContextLine(context);
     const input = contextLine
       ? `${contextLine}\n\n${userInput}`
       : userInput;
 
+    // ★ Стартуем с последнего агента диалога
+    const startAgent = this.lastAgents.get(sessionId) ?? this.triage;
+    console.log(`[start] → ${startAgent.name}`);
+
     try {
-      const result = await run(this.triage, input, {
+      const result = await run(startAgent, input, {
         session,
-        maxTurns: 15,
+        maxTurns: MAX_TURNS,
       });
 
-      const lastAgent = result.lastAgent?.name ?? 'Unknown';
-      const answer = result.finalOutput?.trim() || 'Не смог ответить 🥁';
+      const lastAgent = result.lastAgent;
+      const lastAgentName = lastAgent?.name ?? 'Unknown';
+      let answer = result.finalOutput?.trim() ?? '';
 
-      this.opts.onRoute?.(lastAgent, userInput);
+      if (lastAgent) {
+        this.lastAgents.set(sessionId, lastAgent);
+      }
+
+      this.opts.onRoute?.(lastAgentName, userInput);
 
       // Эскалация — если финальный агент SupportAgent
-      if (lastAgent === 'SupportAgent') {
+      if (lastAgentName === 'SupportAgent') {
         await this.escalate(userInput, answer, sessionId, context);
       }
 
@@ -170,6 +193,7 @@ export class AgentsAssistant {
 
   resetSession(sessionId: string): void {
     this.sessions.delete(sessionId);
+    this.lastAgents.delete(sessionId);  // ★ чистим оба
   }
 
   private getSession(sessionId: string): Session {

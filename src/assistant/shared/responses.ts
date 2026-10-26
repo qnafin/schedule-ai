@@ -16,22 +16,6 @@ export const extractText = (response: OpenAI.Responses.Response): string => {
 };
 
 /**
- * Ищет mcp_call по имени в output.
- * Возвращает сырой item — парсинг arguments на стороне вызывающего.
- */
-export const findMcpCall = (
-  response: OpenAI.Responses.Response,
-  name: string,
-): Record<string, unknown> | null => {
-  for (const item of response.output ?? []) {
-    if (item.type !== 'mcp_call') continue;
-    if (item.name !== name) continue;
-    return item as unknown as Record<string, unknown>;
-  }
-  return null;
-};
-
-/**
  * Логирует все MCP-вызовы из response — для отладки.
  */
 export const logMcpCalls = (response: OpenAI.Responses.Response): void => {

@@ -20,7 +20,7 @@ AI-ассистент для управления расписанием муз�
 │                                                                      │
 │   Инструменты из фич:                                                │
 │   ├── users/          list_students, find_student, find_teacher      │
-│   ├── schedule/       list_schedule_dates, get_schedule, append/...  │
+│   ├── schedule/        get_schedule, append/...  │
 │   ├── rooms/          list_rooms                                     │
 │   └── notifications/  get_notifications, run_daily, send_*, ...      │
 │                                                                      │

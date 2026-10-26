@@ -19,16 +19,7 @@ export const registerScheduleTools = (
   server: FastMCP,
   { config, authClient }: Deps
 ) => {
-  server.addTool({
-    name: "list_schedule_dates",
-    description: "Список доступных дат в расписании (ISO YYYY-MM-DD).",
-    parameters: z.object({}),
-    execute: async () => {
-      const dates = await listScheduleDates(config, authClient);
-      return JSON.stringify(dates, null, 2);
-    },
-  });
-
+  
   server.addTool({
     name: "get_schedule",
     description:
