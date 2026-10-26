@@ -12,6 +12,7 @@
     "daily": "npx tsx --env-file=.env src/cli/daily.ts --dates 2026-09-01,2026-09-02",
     "bot": "npx tsx --env-file=.env src/bot/index.ts",
     "bot:multi": "npx tsx --env-file=.env src/bot/multi.ts",
+    "bot:agents": "npx tsx --env-file=.env src/bot/agents.ts",
     "rag:index": "npx tsx --env-file=.env src/rag/index-rag.ts"
   },
   "keywords": [],
@@ -24,6 +25,7 @@
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
     "@lancedb/lancedb": "^0.40.0",
+    "@openai/agents": "^0.20.0",
     "fastmcp": "^4.22.4",
     "google-auth-library": "^11.1.0",
     "google-spreadsheet": "^5.3.0",

@@ -5,7 +5,7 @@ export interface DebouncerOptions<TContext> {
 }
 
 export const createDebouncer = <TContext>({
-  quietMs = 3000,
+  quietMs = 1000,
   maxWaitMs = 15000,
   onFlush,
 }: DebouncerOptions<TContext>) => {
